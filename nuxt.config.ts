@@ -3,10 +3,6 @@ export default defineNuxtConfig({
   devtools: { enabled: true },
 
   modules: ["@nuxtjs/tailwindcss", "@clerk/nuxt"],
-  clerk: {
-    signInForceRedirectUrl: "/app",
-    signUpForceRedirectUrl: "/app",
-  },
   nitro: {
     preset: "vercel",
     experimental: {
