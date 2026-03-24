@@ -1,0 +1,9 @@
+[
+  {
+    "id": "adenes",
+    "name": "Adenes Italia SRL",
+    "hoursFieldLabel": "ORE ORDINARIE",
+    "hoursFieldCode": "ORD",
+    "outputTemplatePath": "/template.xlsx"
+  }
+]
