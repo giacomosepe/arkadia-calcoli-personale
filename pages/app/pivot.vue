@@ -3,8 +3,8 @@
 		<div class="stack stack-sm" style="margin-bottom: 32px">
 			<h1 class="page-title">Genera schede dipendenti</h1>
 			<p class="page-subtitle">
-				Carica il file DB ALL prodotto dall'estrazione. Riceverai un
-				Excel con una scheda per ogni dipendente (31 righe × mesi).
+				Carica il file con la lista dei dipendenti e le ore lavorate
+				prodotto dall'estrazione.
 			</p>
 		</div>
 
@@ -56,7 +56,7 @@
 						{{
 							selectedFile
 								? selectedFile.name
-								: "Trascina il file DB ALL qui"
+								: "Trascina il file XLSX qui"
 						}}
 					</p>
 					<p class="drop-subtitle">
@@ -67,7 +67,9 @@
 						}}
 					</p>
 				</div>
-
+				<div class="">
+					<p span="text-secondary"></p>
+				</div>
 				<!-- Preview of what will be generated -->
 				<Transition name="fade">
 					<div v-if="preview" class="card">
@@ -138,7 +140,7 @@
 			<div class="stack stack-md">
 				<div class="card">
 					<div class="card-header">
-						<span class="card-title">Genera</span>
+						<span class="card-title">Genera il rapporto</span>
 					</div>
 					<div class="card-body stack stack-md">
 						<div
@@ -165,8 +167,8 @@
 								con colonne: Data, Risorsa, Ore.
 							</p>
 							<p class="text-sm text-secondary">
-								Usa la tab <strong>Estrai ore</strong> per
-								generarlo.
+								Clicca e trova il file nel folder
+								<strong>DOWNLOADS</strong>.
 							</p>
 						</div>
 
@@ -240,9 +242,9 @@
 import * as ExcelJS from "exceljs";
 
 definePageMeta({
-	layout: 'app',
-	middleware: 'auth',
-})
+	layout: "app",
+	middleware: "auth",
+});
 
 const selectedFile = ref<File | null>(null);
 const isDragging = ref(false);

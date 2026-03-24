@@ -1,10 +1,9 @@
 <template>
 	<div class="page-content">
 		<div class="stack stack-sm" style="margin-bottom: 32px">
-			<h1 class="page-title">Estrai ore presenze</h1>
-			<p class="page-subtitle">
-				Carica i PDF del LUL (uno o più mesi, uno o più dipendenti) e
-				avvia l'estrazione.
+			<h1 class="page-title mb-4">Estrai ore presenze</h1>
+			<p class="page-subtitle card-title">
+				1) Carica i PDF del LUL (uno o più mesi, uno o più dipendenti).
 			</p>
 		</div>
 
@@ -145,12 +144,13 @@
 			<div class="stack stack-md">
 				<div class="card">
 					<div class="card-header">
-						<span class="card-title">Configurazione</span>
+						<span class="card-title">2) Configurazione</span>
 					</div>
 					<div class="card-body stack stack-md">
 						<div class="form-group">
 							<label class="form-label">
-								Colonna ore giornaliere nel PDF
+								2.a) Inserisci il titolo della colonna delle ore
+								giornaliere sul PDF
 							</label>
 							<input
 								v-model="dailyColumn"
@@ -175,7 +175,8 @@
 
 						<div class="form-group">
 							<label class="form-label">
-								Etichetta nel riepilogo VOCI
+								2.b) Inserisci l'etichetta nel riepilogo voci o
+								totali
 							</label>
 							<input
 								v-model="summaryLabel"
@@ -184,8 +185,8 @@
 								spellcheck="false"
 							/>
 							<p class="text-sm text-secondary mt-sm">
-								Come appare nella tabella VOCI in fondo al PDF.
-								Default:
+								Come appare nella tabella totali ( o voci) in
+								fondo alla pagina. Default:
 								<code
 									style="
 										background: var(--c-bg);
@@ -273,9 +274,9 @@
 import type { ExtractionResult } from "~/types";
 
 definePageMeta({
-	layout: 'app',
-	middleware: 'auth',
-})
+	layout: "app",
+	middleware: "auth",
+});
 
 const files = ref<File[]>([]);
 const isDragging = ref(false);
