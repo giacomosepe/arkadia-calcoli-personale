@@ -1,400 +1,342 @@
-# LUL Extractor - Developer & AI Assistant Documentation
+# LUL Extractor — Project Brief
 
-This document provides comprehensive context for developers and AI assistants working on this project.
+## Conversation history
+This project was designed and evolved across these Claude.ai conversations:
+- Original build: https://claude.ai/chat/ff965a17-c8cd-4140-a64d-baab61bc1f38
+- Prompt engineering + architecture refinement: https://claude.ai/share/60303975-a198-4802-bc57-3d32339d433f
 
-## Project Overview
 
-**LUL Extractor** is a Nuxt 3 application that extracts working hours data from Italian payroll PDFs (LUL - Libro Unico del Lavoro) using Claude AI, and exports the data to Excel files.
-
-### Original Design Context
-This project was originally designed in a Claude.ai conversation: https://claude.ai/chat/ff965a17-c8cd-4140-a64d-baab61bc1f38
-
----
-
-## Tech Stack
-
-### Frontend
-- **Framework**: Nuxt 3 (latest)
-- **UI Library**: Vue 3 with Composition API
-- **Styling**:
-  - Custom CSS design system (`assets/css/main.css`) for dashboard/app pages
-  - Tailwind CSS (v3) for homepage only
-  - CSS Variables as single source of truth
-- **Icons**: Inline SVG (no icon library)
-- **Authentication**: Clerk (@clerk/nuxt)
-- **TypeScript**: Full type safety
-
-### Backend
-- **Runtime**: Nitro (Nuxt's server engine)
-- **API**: Server API routes in `server/api/`
-- **AI**: Anthropic SDK (@anthropic-ai/sdk) - Claude Sonnet 4.5
-- **Excel**: ExcelJS for reading and generating .xlsx files
-- **Deployment**: Vercel (preset configured in nuxt.config.ts)
+Read both before making changes. The second conversation contains all prompt design decisions,
+the reasoning behind the two-prompt split, the JSON schema derivation from the Excel template,
+and the HH:MM output decision.
 
 ---
 
-## Architecture
+## What this is
 
-### Folder Structure
-
-```
-lul-extractor/
-├── pages/
-│   ├── index.vue               # Homepage (public, Tailwind)
-│   └── app/                    # Protected app pages (custom CSS)
-│       ├── index.vue           # Main extraction tool
-│       ├── results.vue         # Results preview + download
-│       ├── pivot.vue           # Employee sheets generator
-│       └── config.vue          # Company configuration reference
-├── layouts/
-│   └── app.vue                 # App layout with Navbar
-├── components/
-│   ├── Navbar.vue              # Unified navbar (logo + conditional menu)
-│   ├── HomeMenu.vue            # Homepage menu (Login/Dashboard button)
-│   └── AppMenu.vue             # App navigation (Estrai ore, Risultati, etc.)
-├── middleware/
-│   └── auth.ts                 # Protects all /app/* routes with Clerk
-├── server/
-│   ├── api/
-│   │   ├── extract.post.ts     # Receives PDFs → calls Claude → returns rows
-│   │   ├── export.post.ts      # Builds DB ALL Excel from rows
-│   │   ├── pivot.post.ts       # Builds employee pivot sheets
-│   │   └── companies.get.ts    # Returns company list
-│   └── utils/
-│       └── claude.ts           # Prompt builder + Anthropic API integration
-├── assets/css/
-│   └── main.css                # Complete design system (CSS variables)
-├── types/
-│   └── index.ts                # Shared TypeScript types
-├── config/
-│   └── companies.json          # Company configurations
-└── public/
-    └── template.xlsx           # Excel template for export
-```
-
-### Page Routing & Layouts
-
-- **`/`** (Homepage): Public, no layout, uses Tailwind
-- **`/app/*`** (Dashboard): Protected by auth middleware, uses `app` layout, uses custom CSS
-
-### Key Design Decisions
-
-#### 1. Navigation Structure
-**Problem**: Two separate nav components (HomeNav + AppNav) caused flickering during route transitions.
-
-**Solution**: Single `Navbar.vue` component that:
-- Stays mounted during all route transitions (prevents flicker)
-- Conditionally renders `HomeMenu` or `AppMenu` based on route
-- Logo is always visible and never remounts
-
-#### 2. Styling System
-**Problem**: Need both custom design system and Tailwind flexibility.
-
-**Solution**: Dual approach with single source of truth:
-- **CSS Variables** (`main.css`) = source of truth for all colors
-- **Tailwind Config** = references CSS variables (e.g., `bg-primary` → `var(--c-accent)`)
-- Homepage uses Tailwind classes
-- Dashboard uses custom CSS classes
-- Both pull from same color palette
-
-#### 3. Authentication
-- Clerk handles all auth (no custom implementation)
-- Middleware protects `/app/*` routes
-- Homepage shows Login button (guests) or Dashboard link (authenticated users)
+A Nuxt 3 + Vue 3 web app used by a small internal team (3 people) to:
+1. Extract daily worked hours from Italian payroll PDFs (LUL — Libro Unico del Lavoro) using the Claude API
+2. Export the data to Excel — a flat DB ALL sheet and one pivot sheet per employee
 
 ---
 
-## Color Palette
+## Tech stack
 
-**Single Source**: `assets/css/main.css` (lines 1-37)
-
-```css
-:root {
-    /* Brand */
-    --c-accent: #4F46E5;          /* Primary indigo */
-    --c-accent-hover: #4338CA;    /* Darker indigo */
-    --c-accent-light: #EEF2FF;    /* Light indigo */
-
-    /* Backgrounds */
-    --c-bg: #F7F6F3;              /* Warm off-white */
-    --c-surface: #ffffff;         /* Cards/panels */
-
-    /* Borders */
-    --c-border: #e4e2dc;
-    --c-border-strong: #c8c5bc;
-
-    /* Text */
-    --c-text-primary: #1a1916;    /* Near black */
-    --c-text-secondary: #6b6860;  /* Gray */
-    --c-text-tertiary: #9c9a94;   /* Light gray */
-
-    /* Status */
-    --c-success: #1a7a4a;         /* Green */
-    --c-warning: #a05c00;         /* Orange */
-    --c-danger: #c0392b;          /* Red */
-}
-```
-
-**To change colors**: Edit only `main.css`. Tailwind auto-references these variables.
+- **Nuxt 3** + **Vue 3** + **TypeScript**
+- **Anthropic SDK** — `claude-sonnet-4-5-20250929` (always pin the full model string)
+- **pdf-lib** — splits multi-page PDFs into single pages before sending to Claude
+- **ExcelJS** — generates all Excel output, no AI involved
+- **Clerk** — authentication (invite-only, Restricted Mode, no self-signup)
+- **Tailwind CSS** — homepage only
+- **Custom CSS design system** — `assets/css/main.css`, CSS variables, all app pages
+- **Vercel** — deployment (nitro preset)
 
 ---
 
-## API Flow
+## Folder structure
 
-### 1. Extract Flow (`/api/extract`)
 ```
-User uploads PDFs
-    ↓
-POST /api/extract with FormData
-    ↓
-Server reads PDFs as base64
-    ↓
-Calls Claude API with prompt + PDF images
-    ↓
-Claude returns structured JSON with rows
-    ↓
-Returns { rows, errors, totalEmployees, totalMonths }
-    ↓
-Client stores in sessionStorage
-    ↓
-Navigates to /app/results
-```
-
-### 2. Export Flow (`/api/export`)
-```
-User clicks "Scarica Excel" on results page
-    ↓
-POST /api/export with { rows, companyId, month }
-    ↓
-Server uses ExcelJS to create workbook
-    ↓
-Writes "DB ALL" sheet with columns: Data, Risorsa, Ore
-    ↓
-Returns .xlsx file as blob
-    ↓
-Client downloads via URL.createObjectURL
-```
-
-### 3. Pivot Flow (`/api/pivot`)
-```
-User uploads DB ALL Excel file
-    ↓
-POST /api/pivot with FormData
-    ↓
-Server reads Excel, groups by employee
-    ↓
-Creates one sheet per employee (31 rows × months)
-    ↓
-Returns .xlsx file as blob
-    ↓
-Client downloads
+app.vue                        ← root entry (NuxtLayout + NuxtPage)
+layouts/
+  app.vue                      ← shell for all /app/* pages
+components/
+  AppNav.vue                   ← single nav, switches between HomeMenu/AppMenu
+  HomeMenu.vue                 ← homepage nav (logo + Login/Dashboard)
+  AppMenu.vue                  ← app nav (Estrai ore, Risultati, Schede dipendenti)
+pages/
+  index.vue                    ← homepage (public, Tailwind, Clerk-aware)
+  app/
+    index.vue                  ← Extract tab — upload PDFs, enter config, run extraction
+    results.vue                ← Results preview + verification warnings + download
+    pivot.vue                  ← Schede dipendenti — upload DB ALL, regenerate sheets
+    config.vue                 ← Reference page for LUL field codes
+server/
+  api/
+    extract.post.ts            ← splits PDFs, calls Claude once per page, verifies totals
+    export.post.ts             ← rows[] → DB ALL sheet + employee pivot sheets (.xlsx)
+    pivot.post.ts              ← uploaded DB ALL .xlsx → regenerate employee sheets only
+    check-config.get.ts        ← checks ANTHROPIC_API_KEY is set
+    companies.get.ts           ← serves config/companies.json (legacy, not used in UI)
+  utils/
+    claude.ts                  ← SYSTEM_PROMPT + buildUserPrompt() + Anthropic API call
+assets/css/main.css            ← full design system, CSS variables
+types/index.ts                 ← shared TypeScript types
+config/companies.json          ← company configs (legacy, Supabase migration planned)
+middleware/
+  auth.global.ts               ← protects all /app/* routes via Clerk
 ```
 
 ---
 
-## Claude AI Integration
+## Routes
 
-### Model
-`claude-sonnet-4-5-20250929` (latest Sonnet 4.5)
-
-### Prompt Strategy
-Located in `server/utils/claude.ts`
-
-**Key elements**:
-1. Clear role definition (payroll document analyzer)
-2. Structured output format (JSON array)
-3. Specific instructions for date formats, name extraction
-4. Examples of expected input/output
-5. Error handling instructions
-
-**Input**: PDF pages as base64-encoded images via Vision API
-
-**Output**: JSON array of `{ date, employee, hours, sourceFile }`
+```
+/              → homepage (public)
+/app           → Extract tab (protected)
+/app/results   → Results + download (protected)
+/app/pivot     → Schede dipendenti — sheet regeneration (protected)
+/app/config    → Field code reference (protected)
+```
 
 ---
 
-## Environment Variables
+## Environment variables
 
-### Required
-
-```env
-# Anthropic API (for Claude)
-ANTHROPIC_API_KEY=sk-ant-...
-
-# Clerk Authentication
-CLERK_PUBLISHABLE_KEY=pk_...
-CLERK_SECRET_KEY=sk_...
 ```
-
-### Vercel Setup
-Add these in Vercel dashboard → Settings → Environment Variables
+ANTHROPIC_API_KEY       ← Anthropic API key
+CLERK_PUBLISHABLE_KEY   ← pk_live_... for production, pk_test_... for localhost
+CLERK_SECRET_KEY        ← sk_live_... for production
+```
 
 ---
 
-## Development Workflow
+## The three server operations
 
-### Local Setup
-```bash
-npm install
-cp .env.example .env
-# Add your API keys to .env
-npm run dev
-```
+Understanding which file does what is critical. There are three distinct operations:
 
-### Build & Deploy
-```bash
-npm run build      # Test production build
-git push           # Vercel auto-deploys from main branch
-```
+### 1. `extract.post.ts` — Step 1, uses AI
+Receives uploaded PDF files and two config values from the user.
+Splits each PDF into individual pages using pdf-lib.
+Calls `claude.ts` once per page → one JSON record per page.
+Verifies: sums extracted daily hours vs declared monthly total, flags discrepancies > 0.1h.
+Returns rows[] + warnings[] to the frontend (stored in sessionStorage).
 
-### Adding Features
+### 2. `export.post.ts` — Step 2, no AI
+Receives rows[] from sessionStorage (the normal download path).
+Builds a complete .xlsx with:
+  - Sheet 1: DB ALL (flat, all employees)
+  - Sheets 2–N: one pivot sheet per employee
+This is the primary download — runs immediately after extraction.
 
-**New app page**:
-1. Create in `pages/app/`
-2. Add `definePageMeta({ layout: 'app', middleware: 'auth' })`
-3. Use custom CSS classes from `main.css`
-4. Add link to `components/AppMenu.vue`
+### 3. `pivot.post.ts` — Step 2 alternative, no AI
+Receives an already-exported DB ALL .xlsx uploaded by the user.
+Re-reads its rows and regenerates all employee pivot sheets.
+Use case: user reviewed/edited the DB ALL file manually and needs fresh sheets
+without re-running the expensive extraction. Also useful if extraction partially
+failed and was patched by hand.
 
-**New homepage section**:
-1. Edit `pages/index.vue`
-2. Use Tailwind classes
-3. Reference CSS variables for colors
-
----
-
-## Common Tasks
-
-### Change Color Palette
-Edit `assets/css/main.css` lines 1-37. That's it. Everything updates automatically.
-
-### Add New Company Configuration
-Edit `config/companies.json`:
-```json
-{
-  "id": "acme",
-  "name": "Acme SpA",
-  "hoursFieldLabel": "ORE ORDINARIE",
-  "hoursFieldCode": "ORD",
-  "outputTemplatePath": "/template.xlsx"
-}
-```
-
-### Modify Claude Prompt
-Edit `server/utils/claude.ts` → `buildPrompt()` function
-
-### Update Excel Template
-Replace `public/template.xlsx`
+**Key distinction**: `export.post.ts` takes rows from memory. `pivot.post.ts` takes
+rows from a file. Both produce identical output — DB ALL + employee pivot sheets.
 
 ---
 
-## TypeScript Types
+## Extraction flow (step by step)
 
-### Key Types (`types/index.ts`)
+1. User uploads PDFs (any combination — one per employee, one per month, mixed)
+2. User enters two required config fields:
+   - **Colonna ore giornaliere** (`dailyHoursColumn`) — column header in the GIORNO table (e.g. `H Ord`)
+   - **Totale ore mensili** (`totalHoursLabel`) — label for the monthly total in the summary section (e.g. `ORE ORDINARIE`)
+3. User clicks "Avvia estrazione" → confirmation modal shows files + config
+4. User confirms → server splits each PDF into single pages via pdf-lib
+5. Each page sent to Claude separately (1 page = 1 employee-month)
+6. Claude returns structured JSON (see prompt section below)
+7. Server verifies: sum(extracted days) vs declared_total, flags if diff > 0.1h
+8. Results page shows data + any warnings
+9. Warnings must each be acknowledged (checkbox) before download is enabled
+10. Download calls export.post.ts → returns .xlsx
+
+---
+
+## The Claude prompt (`server/utils/claude.ts`)
+
+### Design principles (important — read before editing)
+
+The prompt is split into two parts for a deliberate reason:
+
+**SYSTEM_PROMPT** — stable behavioral contract, never changes between calls.
+Contains: role definition, name normalisation rules, hours conversion examples,
+failure case rules. Eligible for Anthropic prompt caching (billed at 0.1× on cache hits).
+Never put variables here.
+
+**buildUserPrompt(dailyHoursColumn, totalHoursLabel)** — per-call instruction.
+Contains only: what columns/labels to look for (the two variables), and the
+JSON schema example. Everything else lives in the system prompt.
+
+Rule: if it's true for every extraction → system prompt. If it changes per call → user prompt.
+
+### Prompt design decisions (do not revert without good reason)
+
+**Only return days with hours > 0** — Claude omits zero-hour days (weekends, holidays).
+The ExcelJS code fills missing days with 0 via `lookup.get(month)?.get(day) ?? 0`.
+This reduces response tokens and eliminates a whole class of misread errors.
+
+**Employee name normalisation** — always output as SURNAME GIVENNAME, all caps,
+surname first, single space, no comma. Handles both "Cognome e Nome" and
+"Nome e Cognome" field orderings. This ensures consistent keys across the DB.
+
+**Hours as decimal in JSON** — Claude returns 8.75, not "8:45".
+Decimal is used for summing (verification) and stored in DB ALL.
+HH:MM conversion happens in export.post.ts and pivot.post.ts, not in the prompt.
+
+**declared_total: "not found"** if the monthly total label isn't found.
+Never guess a number. The server treats "not found" as undefined and skips
+the verification check for that employee-month.
+
+**Five conversion examples, not one rule** — pattern matching beats formula
+application for reliability:
+`8:00→8.0  7:30→7.5  4:45→4.75  0:30→0.5  0:00→0.0`
+
+**Model string is pinned** — always `claude-sonnet-4-5-20250929`, never the
+alias `claude-sonnet-4-5`. Aliases can silently change.
+
+**max_tokens: 2048** — Claude returns only worked days (typically 20–22 per month).
+Response is under 400 tokens in practice. 2048 is safe headroom without waste.
+
+### Current prompts (source of truth is claude.ts — these are for reference)
+
+```
+SYSTEM_PROMPT:
+You are a data extraction engine for Italian LUL payroll documents.
+Each page you receive contains exactly one employee's attendance record for exactly one calendar month.
+Return ONLY a valid JSON object. No explanation, no markdown, no prose.
+
+Employee name rules:
+- Find the field containing surname and given name (may be labelled "Cognome e Nome" or "Nome e Cognome")
+- Always output as: SURNAME GIVENNAME — all caps, surname first, single space, no comma
+- Examples: "Mario Rossi" → "ROSSI MARIO" | "BIANCHI ANNA MARIA" → "BIANCHI ANNA MARIA"
+
+Hours conversion (H:MM → decimal):
+8:00→8.0  7:30→7.5  4:45→4.75  0:30→0.5  0:00→0.0
+
+Failure rules:
+- Daily hours cell empty, missing, or "--" → hours: 0
+- Monthly total not found or unreadable → declared_total: "not found"
+```
+
+```
+buildUserPrompt(dailyHoursColumn, totalHoursLabel):
+Extract from this LUL page:
+
+- Employee name (see system rules for formatting)
+- Month (1–12) and year
+- Daily hours: column "${dailyHoursColumn}" in the GIORNO attendance table
+- Monthly total: label "${totalHoursLabel}" in the hours summary section
+
+Only include days where hours > 0. Zero-hour days (weekends, holidays, absences) are omitted.
+
+Return this exact JSON — nothing else:
+{"employee":"ROSSI MARIO","month":3,"year":2024,"declared_total":168.0,"days":[{"day":1,"hours":8.0},{"day":3,"hours":7.5},{"day":4,"hours":4.75}]}
+```
+
+---
+
+## Excel output
+
+### DB ALL sheet (5 columns — matches template.xlsx)
+
+| Data       | Risorsa      | Ore  | Giorno | Mese |
+|------------|--------------|------|--------|------|
+| DD/MM/YYYY | ROSSI MARIO  | 8.75 | 1      | 3    |
+
+- All employees, only worked days (hours > 0), sorted by employee → year → month → day
+- `Ore` is decimal throughout — used for verification sums and downstream math
+- `Giorno` and `Mese` are explicit columns — pivot logic reads them directly, no date parsing needed
+
+### Employee pivot sheets (one per employee)
+
+- Rows: days 1–31
+- Columns: `Giorno` + one column per month present in the data (only months with data)
+- Values: HH:MM strings (e.g. "8:45", "7:30", "0:00")
+- Zero-hour cells: shown in grey
+- Both axes frozen (xSplit: 1, ySplit: 1)
+- Sheet name = employee name, max 31 chars (Excel limit), truncated if needed
+
+### Hours format rule
+
+DB ALL stores **decimal** (8.75). Employee sheets display **HH:MM** ("8:45").
+The `decimalToHHMM()` helper lives in both export.post.ts and pivot.post.ts.
+Never store HH:MM in DB ALL — it breaks summing and verification.
 
 ```typescript
-interface ExtractionRow {
-  date: string          // Format: DD/MM/YYYY
-  employee: string      // Full name
-  hours: number         // Decimal (e.g., 8.5)
-  sourceFile: string    // Original PDF filename
-}
-
-interface ExtractionResult {
-  rows: ExtractionRow[]
-  errors: string[]
-  totalEmployees: number
-  totalMonths: number
-  companyId?: string
-  month?: string
-}
-
-interface CompanyConfig {
-  id: string
-  name: string
-  hoursFieldLabel: string
-  hoursFieldCode: string
-  outputTemplatePath: string
+function decimalToHHMM(decimal: number): string {
+  if (!decimal || decimal <= 0) return "0:00";
+  const h = Math.floor(decimal);
+  const m = Math.round((decimal - h) * 60);
+  if (m === 60) return `${h + 1}:00`; // floating point edge case
+  return `${h}:${String(m).padStart(2, "0")}`;
 }
 ```
 
 ---
 
-## Testing Checklist
+## Verification logic (in extract.post.ts)
 
-### Before Deployment
-- [ ] Test PDF upload with multiple files
-- [ ] Verify Claude extraction accuracy
-- [ ] Check Excel download works
-- [ ] Test pivot sheet generation
-- [ ] Verify auth middleware blocks /app/* when logged out
-- [ ] Test navigation transitions (no flicker)
-- [ ] Verify colors match across homepage and dashboard
-- [ ] Test responsive layout on mobile
+After all pages are processed, for each employee+month:
+- Sum all extracted daily hours
+- Compare to `declared_total` from Claude
+- If `declared_total` is "not found" → skip check
+- If `|sum - declared_total| > 0.1` → push a warning
+- Warnings are shown on results page, each must be acknowledged before download
 
-### After Deployment
-- [ ] Verify environment variables are set in Vercel
-- [ ] Test production build
-- [ ] Check Clerk auth in production
-- [ ] Verify API costs (Anthropic usage)
+Tolerance is 0.1h (6 minutes) to absorb rounding from H:MM conversion.
 
 ---
 
-## Known Limitations
+## Rate limiting (in claude.ts)
 
-1. **PDF Quality**: Scanned/low-quality PDFs may fail extraction
-2. **Claude API**: Rate limits apply (check Anthropic dashboard)
-3. **File Size**: Large PDFs (>50 pages) may timeout
-4. **Session Storage**: Results lost on page refresh (by design)
-
----
-
-## Future Roadmap
-
-### Phase 2 Features
-- [ ] R&D project allocation per employee
-- [ ] Extraction history/database
-- [ ] Multi-month export automation
-- [ ] Custom Excel template builder
-- [ ] Batch processing queue
-- [ ] Email notifications on completion
-
-### Technical Improvements
-- [ ] Add unit tests (Vitest)
-- [ ] Implement error monitoring (Sentry)
-- [ ] Add analytics (Plausible/PostHog)
-- [ ] Optimize Claude API usage (caching, batching)
-- [ ] Add progress indicators for long extractions
+- 2 second delay between each page/API call (`setTimeout 2000`)
+- On 429: wait `attempt × 60` seconds, retry up to 3 times
+- Free Anthropic tier hits limits easily — use a paid account for production runs
 
 ---
 
-## Troubleshooting
+## Authentication (Clerk)
 
-### Claude returns empty results
-- Check PDF quality and readability
-- Verify `dailyColumn` and `summaryLabel` match PDF exactly (case-sensitive)
-- Inspect Claude API response in server logs
-
-### Clerk auth not working
-- Verify environment variables are set
-- Check Clerk dashboard for application status
-- Ensure middleware is applied to routes
-
-### Excel download fails
-- Check ExcelJS version compatibility
-- Verify template.xlsx exists in public/
-- Inspect server logs for errors
-
-### Colors don't match
-- All colors should reference CSS variables from `main.css`
-- Tailwind config should use `var(--c-*)` syntax
-- Check for hardcoded hex values
+- Invite-only, Restricted Mode enabled in Clerk dashboard
+- No self-signup flow
+- Homepage (`/`) is public
+- All `/app/*` routes protected by `middleware/auth.global.ts`
+- To invite: Clerk dashboard → Invitations → New invitation → enter email
+- Dev keys (`pk_test_`) work on localhost only
+- Production requires `pk_live_` keys and a custom domain (Vercel's `*.vercel.app` cannot be added to Clerk production)
 
 ---
 
-## Contact & Support
+## Design system
 
-**Developer**: Giacomo Sepe
-**Organization**: Arkadia
-**Original Design**: https://claude.ai/chat/ff965a17-c8cd-4140-a64d-baab61bc1f38
+Custom CSS variables in `assets/css/main.css`. Tailwind is only used on the homepage and references these same variables.
 
-For questions about this codebase, refer to this document first. All architectural decisions and rationale are documented here.
+```css
+--c-accent: #1A4FCC
+--c-bg: #F7F6F3
+--c-surface: #FFFFFF
+--c-text-primary: #1A1916
+--c-text-secondary: #6B6860
+--c-danger: #C0392B
+--c-warning: #A05C00
+--c-success: #1A7A4A
+--font-sans: 'DM Sans'
+--font-mono: 'DM Mono'
+```
+
+Layout: `.header` full-width background, `.site-container` (max 1100px, centered) constrains content.
+`.page-content` handles vertical padding only. `.two-col` collapses to single column at 768px.
+
+---
+
+## Known issues / watch out for
+
+- `useRuntimeConfig()` must receive `event` in server routes: `useRuntimeConfig(event)`
+- ExcelJS sheet names max 31 chars — employee names are truncated if longer
+- pdf-lib page splitting is required — sending a multi-page PDF as one document breaks per-employee-month extraction
+- Floating point: `Math.round(hours * 10000) / 10000` throughout to avoid 8.750000000001 type drift
+- `decimalToHHMM`: guard the `m === 60` edge case or you get "8:60"
+
+---
+
+## What is NOT built yet (planned)
+
+### Supabase migration
+Currently company configs live in `config/companies.json`. Planned schema:
+- `companies` — company identity
+- `pdf_field_configs` — dailyHoursColumn + totalHoursLabel per company
+- `programmi` — Patent Box, Credito R&S etc, each with own Excel template in Storage
+- `company_programmi` — many-to-many bridge
+- `extractions` — audit log per run
+- `extraction_rows` — one row per employee per day
+
+### Part 2 — R&D hour allocation
+- User inputs a % of hours allocated to a specific R&D project
+- System distributes allocated hours across actual worked days (hours > 0) using a randomised spread
+- Zero-hour days in DB ALL serve as the exclusion mask for this distribution
+- Output: allocated hours per employee per day, linked to the project

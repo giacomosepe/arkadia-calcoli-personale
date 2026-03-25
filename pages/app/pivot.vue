@@ -1,5 +1,6 @@
 <template>
 	<div class="page-content">
+		<!-- ── Page header ──────────────────────────────────────────── -->
 		<div class="stack stack-sm" style="margin-bottom: 32px">
 			<h1 class="page-title">Genera schede dipendenti</h1>
 			<p class="page-subtitle">
@@ -236,6 +237,37 @@
 			</div>
 		</div>
 	</div>
+	<!-- ── Back to PDF extraction ───────────────────────────────── -->
+	<div class="outer-panel" style="margin-bottom: 32px">
+		<NuxtLink to="/app" class="db-card">
+			<div class="pdf-icon">
+				<svg
+					width="28"
+					height="28"
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="white"
+					stroke-width="1.5"
+				>
+					<path
+						d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
+					/>
+					<polyline points="14 2 14 8 20 8" />
+					<line x1="12" y1="18" x2="12" y2="12" />
+					<line x1="9" y1="15" x2="15" y2="15" />
+				</svg>
+			</div>
+			<div style="flex: 1">
+				<p class="db-card-title">Parti dai PDF</p>
+				<p class="db-card-subtitle">
+					Carica i PDF del LUL e avvia una nuova estrazione.
+				</p>
+			</div>
+			<span class="btn btn-secondary btn-sm" style="flex-shrink: 0">
+				← Torna all'estrazione
+			</span>
+		</NuxtLink>
+	</div>
 </template>
 
 <script setup lang="ts">
@@ -349,3 +381,56 @@ async function generatePivot() {
 	}
 }
 </script>
+
+<style scoped>
+/* Outer panel — matches index.vue exactly */
+.outer-panel {
+	background: transparent;
+	border: 1px solid var(--c-border);
+	border-radius: var(--radius-xl);
+	padding: 20px;
+}
+
+/* White inner card — matches db-card pattern from index.vue */
+.db-card {
+	display: flex;
+	align-items: center;
+	gap: 16px;
+	padding: 18px 20px;
+	background: var(--c-surface);
+	border: 1px solid var(--c-border);
+	border-radius: var(--radius-lg);
+	text-decoration: none;
+	transition:
+		border-color 0.15s,
+		box-shadow 0.15s;
+}
+
+.db-card:hover {
+	border-color: var(--c-border-strong);
+	box-shadow: var(--shadow-sm);
+}
+
+.pdf-icon {
+	width: 48px;
+	height: 48px;
+	border-radius: var(--radius-md);
+	background: var(--c-accent);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex-shrink: 0;
+}
+
+.db-card-title {
+	font-size: 0.9375rem;
+	font-weight: 600;
+	color: var(--c-text-primary);
+	margin-bottom: 3px;
+}
+
+.db-card-subtitle {
+	font-size: 0.8125rem;
+	color: var(--c-text-secondary);
+}
+</style>

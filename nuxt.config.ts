@@ -11,7 +11,7 @@ export default defineNuxtConfig({
   },
 
   runtimeConfig: {
-    anthropicApiKey: process.env.ANTHROPIC_API_KEY,
+    anthropicApiKey: process.env.ANTHROPIC_API_KEY || "",
     public: {
       appName: "LUL Extractor",
       clerkPublishableKey: process.env.CLERK_PUBLISHABLE_KEY,

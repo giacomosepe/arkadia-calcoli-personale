@@ -14,13 +14,7 @@
 		>
 			Risultati
 		</NuxtLink>
-		<NuxtLink
-			to="/app/pivot"
-			class="nav-link"
-			:class="{ active: route.path === '/app/pivot' }"
-		>
-			Schede dipendenti
-		</NuxtLink>
+
 		<SignOutButton>
 			<NuxtButton
 				type="button"

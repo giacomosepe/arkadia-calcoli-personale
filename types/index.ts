@@ -1,24 +1,32 @@
 export interface ExtractedRow {
-  date: string        // DD/MM/YYYY
-  employee: string
-  hours: number       // decimal, 0 for non-working days
-  sourceFile: string
-  month: number       // 1-12
-  year: number
-  day: number         // 1-31
+  date: string;
+  employee: string;
+  hours: number;
+  sourceFile: string;
+  month: number;
+  year: number;
+  day: number;
+  declaredTotal?: number;
+}
+
+export interface ExtractionWarning {
+  employee: string;
+  month: number;
+  year: number;
+  declared: number;
+  actual: number;
+  diff: number;
+  label: string;
 }
 
 export interface ExtractionResult {
-  rows: ExtractedRow[]
-  errors: string[]
-  totalEmployees: number
-  totalMonths: number
+  rows: ExtractedRow[];
+  errors: string[];
+  warnings: ExtractionWarning[];
+  totalEmployees: number;
+  totalMonths: number;
 }
 
 export interface ExportRequest {
-  rows: ExtractedRow[]
-}
-
-export interface PivotRequest {
-  // sent as multipart — DB ALL xlsx uploaded as file
+  rows: ExtractedRow[];
 }
