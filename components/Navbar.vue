@@ -3,15 +3,16 @@
 		<div class="site-container">
 			<!-- Logo - always visible -->
 			<NuxtLink to="/" class="flex items-center gap-2.5">
-				<span
+				<!-- <span
 					class="flex h-7 w-7 items-center justify-center rounded-lg font-mono text-xs font-bold text-white"
 					style="background: var(--c-accent)"
 				>
-					LUL
-				</span>
+					-->
+				<LulExtractorLogo :width="180" />
+				<!-- </span>
 				<span class="font-semibold" style="color: var(--c-text-primary)"
 					>LUL Extractor</span
-				>
+				> -->
 			</NuxtLink>
 
 			<!-- Conditional menu based on route -->
