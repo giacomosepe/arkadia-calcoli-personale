@@ -23,23 +23,15 @@ const MONTH_NAMES = [
  * Converts decimal hours to HH:MM string.
  * Used for the employee pivot sheets display.
  * The DB ALL sheet keeps decimal — needed for summing and verification.
- *
- * Examples:
- *   8.0   → "8:00"
- *   7.5   → "7:30"
- *   4.75  → "4:45"
- *   0.0   → "0:00"
  */
 function decimalToHHMM(decimal: number): string {
   if (!decimal || decimal <= 0) return "0:00";
   const h = Math.floor(decimal);
   const m = Math.round((decimal - h) * 60);
-  // Handle floating point edge case where minutes round to 60
   if (m === 60) return `${h + 1}:00`;
   return `${h}:${String(m).padStart(2, "0")}`;
 }
 
-// Shared header style used on both DB ALL and employee sheets
 function applyHeaderStyle(row: ExcelJS.Row) {
   row.font = { bold: true, name: "Arial", size: 10 };
   row.fill = {
@@ -49,6 +41,20 @@ function applyHeaderStyle(row: ExcelJS.Row) {
   };
   row.alignment = { horizontal: "center" };
   row.height = 18;
+}
+
+function applyTotalStyle(row: ExcelJS.Row, colCount: number) {
+  row.font = { bold: true, name: "Arial", size: 10 };
+  row.fill = {
+    type: "pattern",
+    pattern: "solid",
+    fgColor: { argb: "FFE8EDF5" },
+  };
+  row.height = 18;
+  row.getCell(1).alignment = { horizontal: "center" };
+  for (let col = 2; col <= colCount + 1; col++) {
+    row.getCell(col).alignment = { horizontal: "center" };
+  }
 }
 
 // ─── Main handler ─────────────────────────────────────────────────────────────
@@ -67,11 +73,6 @@ export default defineEventHandler(async (event) => {
   wb.created = new Date();
 
   // ── Sheet 1: DB ALL ────────────────────────────────────────────────────────
-  // Matches the template.xlsx structure exactly:
-  // Data | Risorsa | Ore | Giorno | Mese
-  //
-  // "Ore" stays decimal here — it's used for summing, verification, and
-  // feeding the pivot step. HH:MM is only on the employee sheets.
   const wsAll = wb.addWorksheet("DB ALL");
 
   wsAll.columns = [
@@ -88,7 +89,7 @@ export default defineEventHandler(async (event) => {
     const dataRow = wsAll.addRow({
       date: row.date,
       employee: row.employee,
-      hours: row.hours, // decimal — e.g. 8.75
+      hours: row.hours,
       day: row.day,
       month: row.month,
     });
@@ -102,24 +103,14 @@ export default defineEventHandler(async (event) => {
   wsAll.views = [{ state: "frozen", ySplit: 1 }];
 
   // ── Employee pivot sheets ──────────────────────────────────────────────────
-  // One sheet per employee.
-  // Layout: rows = days 1–31, columns = months present in data.
-  // Cell values are HH:MM strings (display format for the end user).
-  //
-  // Why only months with data? An employee on sick leave for all of June
-  // would produce a blank column that adds no information. We include only
-  // months where that employee has at least one worked hour.
   const employees = [...new Set(body.rows.map((r) => r.employee))].sort();
 
   for (const employee of employees) {
     const empRows = body.rows.filter((r) => r.employee === employee);
-
-    // Months this employee actually has data for, in calendar order
     const months = [...new Set(empRows.map((r) => r.month))].sort(
       (a, b) => a - b,
     );
 
-    // Excel sheet names are max 31 chars
     const sheetName =
       employee.length > 31 ? employee.substring(0, 31) : employee;
     const ws = wb.addWorksheet(sheetName);
@@ -131,39 +122,32 @@ export default defineEventHandler(async (event) => {
     ]);
     applyHeaderStyle(headerRow);
 
-    // Column widths
-    ws.getColumn(1).width = 10; // Giorno column
+    ws.getColumn(1).width = 10;
     months.forEach((_, i) => {
       ws.getColumn(i + 2).width = 10;
     });
 
-    // Build a lookup: month → day → decimal hours
-    // We look up decimal here so the decimalToHHMM conversion happens
-    // exactly once per cell, not during row collection.
+    // Build lookup: month → day → decimal hours
     const lookup = new Map<number, Map<number, number>>();
     for (const row of empRows) {
       if (!lookup.has(row.month)) lookup.set(row.month, new Map());
       lookup.get(row.month)!.set(row.day, row.hours);
     }
 
-    // Write one row per day 1–31
-    // Days the employee didn't work show "0:00" in grey
+    // Write day rows 1–31
     for (let day = 1; day <= 31; day++) {
       const values: (number | string)[] = [day];
 
       for (const month of months) {
         const decimal = lookup.get(month)?.get(day) ?? 0;
-        values.push(decimalToHHMM(decimal)); // HH:MM string
+        values.push(decimalToHHMM(decimal));
       }
 
       const dataRow = ws.addRow(values);
       dataRow.font = { name: "Arial", size: 10 };
-
-      // Day number column: bold, centered
       dataRow.getCell(1).font = { bold: true, name: "Arial", size: 10 };
       dataRow.getCell(1).alignment = { horizontal: "center" };
 
-      // Hour columns: centered, grey text for zero-hour cells
       for (let col = 2; col <= months.length + 1; col++) {
         const cell = dataRow.getCell(col);
         cell.alignment = { horizontal: "center" };
@@ -173,8 +157,23 @@ export default defineEventHandler(async (event) => {
       }
     }
 
-    // Freeze both the header row and the day column so you can scroll
-    // across months while keeping the row/column labels visible
+    // ── Blank separator row ──────────────────────────────────────────────────
+    ws.addRow([]);
+
+    // ── Totals row — sum of all worked hours per month ───────────────────────
+    const totalValues: (string | number)[] = ["Totale"];
+    for (const month of months) {
+      const monthMap = lookup.get(month);
+      const total = monthMap
+        ? [...monthMap.values()].reduce((sum, h) => sum + h, 0)
+        : 0;
+      totalValues.push(decimalToHHMM(Math.round(total * 10000) / 10000));
+    }
+
+    const totalRow = ws.addRow(totalValues);
+    applyTotalStyle(totalRow, months.length);
+
+    // Freeze both axes
     ws.views = [{ state: "frozen", xSplit: 1, ySplit: 1 }];
   }
 

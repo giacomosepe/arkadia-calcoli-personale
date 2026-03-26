@@ -37,23 +37,31 @@ function applyHeaderStyle(row: ExcelJS.Row) {
   row.height = 18;
 }
 
+function applyTotalStyle(row: ExcelJS.Row, colCount: number) {
+  row.font = { bold: true, name: "Arial", size: 10 };
+  row.fill = {
+    type: "pattern",
+    pattern: "solid",
+    fgColor: { argb: "FFE8EDF5" },
+  };
+  row.height = 18;
+  row.getCell(1).alignment = { horizontal: "center" };
+  for (let col = 2; col <= colCount + 1; col++) {
+    row.getCell(col).alignment = { horizontal: "center" };
+  }
+}
+
 // ─── Row shape parsed from DB ALL ─────────────────────────────────────────────
 interface DbRow {
-  date: string; // DD/MM/YYYY
+  date: string;
   employee: string;
-  hours: number; // decimal
+  hours: number;
   day: number;
   month: number;
   year: number;
 }
 
 // ─── Main handler ─────────────────────────────────────────────────────────────
-// This route receives an already-exported DB ALL Excel file and regenerates
-// all employee sheets from it — no AI involved, pure ExcelJS.
-//
-// When to use this vs export.post.ts:
-//   export.post.ts  → first run, you have raw extracted rows in memory
-//   pivot.post.ts   → re-run after reviewing/editing the DB ALL file manually
 export default defineEventHandler(async (event) => {
   const formData = await readMultipartFormData(event);
   if (!formData) {
@@ -88,13 +96,10 @@ export default defineEventHandler(async (event) => {
     });
   }
 
-  // Parse rows from DB ALL.
-  // The sheet has 5 columns: Data | Risorsa | Ore | Giorno | Mese
-  // We use Giorno and Mese directly — no need to parse the date string.
   const rows: DbRow[] = [];
 
   dbSheet.eachRow((row, rowNum) => {
-    if (rowNum === 1) return; // skip header
+    if (rowNum === 1) return;
 
     const date = row.getCell(1).text?.trim();
     const employee = row.getCell(2).text?.trim();
@@ -111,7 +116,6 @@ export default defineEventHandler(async (event) => {
     const month =
       typeof monthRaw === "number" ? monthRaw : parseInt(String(monthRaw)) || 0;
 
-    // Derive year from the date string since it's not a separate column
     let year = 0;
     if (date && date.includes("/")) {
       year = parseInt(date.split("/")[2]) || 0;
@@ -185,14 +189,14 @@ export default defineEventHandler(async (event) => {
       ws.getColumn(i + 2).width = 10;
     });
 
-    // Lookup: month → day → decimal hours
+    // Build lookup: month → day → decimal hours
     const lookup = new Map<number, Map<number, number>>();
     for (const r of empRows) {
       if (!lookup.has(r.month)) lookup.set(r.month, new Map());
       lookup.get(r.month)!.set(r.day, r.hours);
     }
 
-    // 31 day rows with HH:MM values
+    // Write day rows 1–31
     for (let day = 1; day <= 31; day++) {
       const values: (number | string)[] = [day];
       for (const month of months) {
@@ -213,6 +217,22 @@ export default defineEventHandler(async (event) => {
         }
       }
     }
+
+    // ── Blank separator row ──────────────────────────────────────────────────
+    ws.addRow([]);
+
+    // ── Totals row — sum of all worked hours per month ───────────────────────
+    const totalValues: (string | number)[] = ["Totale"];
+    for (const month of months) {
+      const monthMap = lookup.get(month);
+      const total = monthMap
+        ? [...monthMap.values()].reduce((sum, h) => sum + h, 0)
+        : 0;
+      totalValues.push(decimalToHHMM(Math.round(total * 10000) / 10000));
+    }
+
+    const totalRow = ws.addRow(totalValues);
+    applyTotalStyle(totalRow, months.length);
 
     ws.views = [{ state: "frozen", xSplit: 1, ySplit: 1 }];
   }

@@ -127,7 +127,7 @@
 				</div>
 			</Transition>
 
-			<!-- ── Warnings: hour discrepancies ───────────────────────── -->
+			<!-- ── Warnings: hour discrepancies ─────────────────────────────── -->
 			<Transition name="fade">
 				<div
 					v-if="result.warnings?.length"
@@ -169,67 +169,348 @@
 								color: var(--c-warning);
 							"
 						>
-							{{ acknowledgedCount }}/{{
-								result.warnings.length
-							}}
+							{{ acknowledgedCount }}/{{ result.warnings.length }}
 							verificate
 						</span>
 					</div>
+
 					<div class="card-body stack stack-md">
 						<p class="text-sm text-secondary">
 							Le ore estratte non corrispondono al totale
-							dichiarato nel PDF. Verifica ogni discrepanza e
-							spunta la casella per confermare prima di poter
-							scaricare.
+							dichiarato nel PDF. Correggi la discrepanza oppure
+							spunta la casella per confermare e sbloccare il
+							download.
 						</p>
+
+						<!-- One block per warning -->
 						<div
 							v-for="(w, i) in result.warnings"
 							:key="i"
-							style="
-								padding: 14px 16px;
-								background: var(--c-bg);
-								border-radius: var(--radius-md);
-								display: flex;
-								align-items: flex-start;
-								gap: 12px;
-							"
+							class="warning-block"
 						>
-							<input
-								type="checkbox"
-								:id="`warn-${i}`"
-								v-model="acknowledged[i]"
-								style="
-									margin-top: 3px;
-									flex-shrink: 0;
-									cursor: pointer;
-									width: 16px;
-									height: 16px;
-									accent-color: var(--c-accent);
-								"
-							/>
-							<label
-								:for="`warn-${i}`"
-								style="cursor: pointer; flex: 1"
-								class="stack stack-sm"
-							>
-								<span class="fw-500 text-sm">{{
-									w.label
-								}}</span>
-								<span class="text-sm text-secondary">
-									PDF dichiara
-									<strong style="color: var(--c-text-primary)"
-										>{{ w.declared.toFixed(2) }}h</strong
+							<!-- Warning summary row -->
+							<div class="warning-summary-row">
+								<input
+									type="checkbox"
+									:id="`warn-${i}`"
+									v-model="acknowledged[i]"
+									style="
+										margin-top: 3px;
+										flex-shrink: 0;
+										cursor: pointer;
+										width: 16px;
+										height: 16px;
+										accent-color: var(--c-accent);
+									"
+								/>
+								<label
+									:for="`warn-${i}`"
+									style="cursor: pointer; flex: 1"
+									class="stack stack-sm"
+								>
+									<span class="fw-500 text-sm">{{
+										w.label
+									}}</span>
+									<span class="text-sm text-secondary">
+										PDF dichiara
+										<strong
+											style="color: var(--c-text-primary)"
+											>{{
+												liveDeclared(w).toFixed(2)
+											}}h</strong
+										>
+										· estratte
+										<strong
+											style="color: var(--c-text-primary)"
+											>{{
+												liveActual(w).toFixed(2)
+											}}h</strong
+										>
+										· differenza
+										<strong
+											:style="
+												liveDiff(w) <= 0.1
+													? 'color: var(--c-success)'
+													: 'color: var(--c-danger)'
+											"
+										>
+											{{ liveDiff(w).toFixed(2) }}h
+										</strong>
+									</span>
+								</label>
+								<button
+									class="btn btn-primary btn-sm"
+									style="flex-shrink: 0"
+									@click="toggleCorrection(i)"
+								>
+									{{
+										correctionOpen[i]
+											? "Chiudi"
+											: "Correggi"
+									}}
+								</button>
+							</div>
+
+							<!-- Correction panel -->
+							<Transition name="fade">
+								<div
+									v-if="correctionOpen[i]"
+									class="correction-panel"
+								>
+									<button class="correction-title">
+										Correggi discrepanza
+									</button>
+
+									<!-- Mode selector -->
+									<div class="correction-modes">
+										<label
+											class="correction-mode"
+											:class="{
+												active:
+													correctionMode[i] ===
+													'rows',
+											}"
+										>
+											<input
+												type="radio"
+												:name="`mode-${i}`"
+												value="rows"
+												v-model="correctionMode[i]"
+												style="
+													accent-color: var(
+														--c-accent
+													);
+													flex-shrink: 0;
+													margin-top: 2px;
+												"
+											/>
+											<div>
+												<p class="mode-label">
+													Modifica tabella dei giorni
+													lavorati
+												</p>
+												<p class="mode-sub">
+													Seleziona un giorno e
+													modifica o aggiungi le ore
+												</p>
+											</div>
+										</label>
+										<label
+											class="correction-mode"
+											:class="{
+												active:
+													correctionMode[i] ===
+													'total',
+											}"
+										>
+											<input
+												type="radio"
+												:name="`mode-${i}`"
+												value="total"
+												v-model="correctionMode[i]"
+												style="
+													accent-color: var(
+														--c-accent
+													);
+													flex-shrink: 0;
+													margin-top: 2px;
+												"
+											/>
+											<div>
+												<p class="mode-label">
+													Modifica il totale del mese
+												</p>
+												<p class="mode-sub">
+													Il totale dichiarato nel PDF
+													è errato
+												</p>
+											</div>
+										</label>
+									</div>
+
+									<!-- Mode A: edit / add a specific day -->
+									<div
+										v-if="correctionMode[i] === 'rows'"
+										class="correction-content"
 									>
-									· estratte
-									<strong style="color: var(--c-text-primary)"
-										>{{ w.actual.toFixed(2) }}h</strong
+										<div class="correction-field-row">
+											<span class="correction-field-label"
+												>Giorno</span
+											>
+											<input
+												type="date"
+												class="form-input correction-date-input"
+												:value="correctionDate[i] ?? ''"
+												:min="`${w.year}-${String(w.month).padStart(2, '0')}-01`"
+												:max="`${w.year}-${String(w.month).padStart(2, '0')}-31`"
+												@change="
+													onDateChange(
+														i,
+														w,
+														(
+															$event.target as HTMLInputElement
+														).value,
+													)
+												"
+											/>
+											<span
+												v-if="correctionDate[i]"
+												class="correction-current-value"
+											>
+												{{
+													currentDayValue(
+														w,
+														correctionDate[i],
+													) !== null
+														? `Valore attuale: ${currentDayValue(w, correctionDate[i])!.toFixed(2)}h`
+														: "Giorno non presente — verrà aggiunto"
+												}}
+											</span>
+										</div>
+										<div
+											class="divider"
+											style="margin: 8px 0"
+										/>
+										<div class="correction-field-row">
+											<span class="correction-field-label"
+												>Ore corrette</span
+											>
+											<input
+												type="number"
+												class="form-input correction-hours-input"
+												v-model.number="
+													correctionHours[i]
+												"
+												min="0"
+												max="24"
+												step="0.5"
+												placeholder="0"
+											/>
+											<span class="correction-hint"
+												>Inserisci 0 per rimuovere il
+												giorno</span
+											>
+										</div>
+										<div class="correction-footer">
+											<span class="correction-preview">
+												Totale dopo correzione:
+												<strong
+													:style="
+														previewTotal(w, i) !==
+															null &&
+														Math.abs(
+															liveDeclared(w) -
+																previewTotal(
+																	w,
+																	i,
+																)!,
+														) <= 0.1
+															? 'color: var(--c-success)'
+															: 'color: var(--c-text-primary)'
+													"
+												>
+													{{
+														previewTotal(w, i) !==
+														null
+															? previewTotal(
+																	w,
+																	i,
+																)!.toFixed(2) +
+																"h"
+															: "—"
+													}}
+												</strong>
+											</span>
+											<button
+												class="btn btn-primary btn-sm"
+												:disabled="
+													!correctionDate[i] ||
+													correctionHours[i] === null
+												"
+												@click="
+													applyRowCorrection(i, w)
+												"
+											>
+												Applica →
+											</button>
+										</div>
+									</div>
+
+									<!-- Mode B: override declared total -->
+									<div
+										v-if="correctionMode[i] === 'total'"
+										class="correction-content"
 									>
-									· differenza
-									<strong style="color: var(--c-danger)"
-										>{{ w.diff.toFixed(2) }}h</strong
-									>
-								</span>
-							</label>
+										<div class="correction-field-row">
+											<span class="correction-field-label"
+												>Totale corretto</span
+											>
+											<input
+												type="number"
+												class="form-input correction-hours-input"
+												v-model.number="
+													correctionNewTotal[i]
+												"
+												min="0"
+												step="0.5"
+												:placeholder="
+													w.declared.toFixed(2)
+												"
+											/>
+											<span class="correction-hint"
+												>Sostituisce il totale
+												dichiarato dal PDF</span
+											>
+										</div>
+										<div class="correction-footer">
+											<span class="correction-preview">
+												Nuovo totale dichiarato:
+												<strong
+													:style="
+														correctionNewTotal[
+															i
+														] !== null &&
+														Math.abs(
+															Number(
+																correctionNewTotal[
+																	i
+																],
+															) - liveActual(w),
+														) <= 0.1
+															? 'color: var(--c-success)'
+															: 'color: var(--c-text-primary)'
+													"
+												>
+													{{
+														correctionNewTotal[
+															i
+														] !== null
+															? Number(
+																	correctionNewTotal[
+																		i
+																	],
+																).toFixed(2) +
+																"h"
+															: "—"
+													}}
+												</strong>
+											</span>
+											<button
+												class="btn btn-primary btn-sm"
+												:disabled="
+													correctionNewTotal[i] ===
+													null
+												"
+												@click="
+													applyTotalCorrection(i, w)
+												"
+											>
+												Applica →
+											</button>
+										</div>
+									</div>
+								</div>
+							</Transition>
 						</div>
 
 						<!-- Download blocked message -->
@@ -362,40 +643,225 @@
 <script setup lang="ts">
 definePageMeta({ layout: "app" });
 
-import type { ExtractionResult } from "~/types";
+import type {
+	ExtractionResult,
+	ExtractionWarning,
+	ExtractedRow,
+} from "~/types";
 
 const result = ref<ExtractionResult | null>(null);
 const isExporting = ref(false);
 const filterEmployee = ref("");
 
-// Acknowledgement state — one boolean per warning
+// ── Acknowledgement ──────────────────────────────────────────────────
 const acknowledged = ref<boolean[]>([]);
-
 const acknowledgedCount = computed(
 	() => acknowledged.value.filter(Boolean).length,
 );
-
 const canDownload = computed(() => {
 	if (!result.value) return false;
 	if (!result.value.warnings?.length) return true;
 	return acknowledged.value.every(Boolean);
 });
 
+// ── Correction UI state (one entry per warning index) ────────────────
+const correctionOpen = ref<boolean[]>([]);
+const correctionMode = ref<Array<"rows" | "total">>([]);
+const correctionDate = ref<Array<string | null>>([]);
+const correctionHours = ref<Array<number | null>>([]);
+const correctionNewTotal = ref<Array<number | null>>([]);
+
+// Stores overridden declared totals keyed by "employee__month__year"
+const overriddenDeclared = ref<Map<string, number>>(new Map());
+
+function warningKey(w: ExtractionWarning): string {
+	return `${w.employee}__${w.month}__${w.year}`;
+}
+
+function toggleCorrection(i: number) {
+	correctionOpen.value[i] = !correctionOpen.value[i];
+}
+
+// ── Live computations ────────────────────────────────────────────────
+
+// Sum of all rows for this employee+month (reacts to row mutations)
+function liveActual(w: ExtractionWarning): number {
+	if (!result.value) return w.actual;
+	const sum = result.value.rows
+		.filter(
+			(r) =>
+				r.employee === w.employee &&
+				r.month === w.month &&
+				r.year === w.year,
+		)
+		.reduce((acc, r) => acc + r.hours, 0);
+	return Math.round(sum * 10000) / 10000;
+}
+
+// Declared total — may be overridden by user
+function liveDeclared(w: ExtractionWarning): number {
+	return overriddenDeclared.value.get(warningKey(w)) ?? w.declared;
+}
+
+// Absolute difference between declared and actual
+function liveDiff(w: ExtractionWarning): number {
+	return (
+		Math.round(Math.abs(liveDeclared(w) - liveActual(w)) * 10000) / 10000
+	);
+}
+
+// ── Date picker helpers ──────────────────────────────────────────────
+
+function onDateChange(i: number, w: ExtractionWarning, dateStr: string) {
+	correctionDate.value[i] = dateStr;
+	const existing = currentDayValue(w, dateStr);
+	// Pre-fill hours with existing value, or 0 for a new day
+	correctionHours.value[i] = existing ?? 0;
+}
+
+// Returns the current hours for a given day, or null if not present
+function currentDayValue(
+	w: ExtractionWarning,
+	dateStr: string | null,
+): number | null {
+	if (!dateStr || !result.value) return null;
+	const day = parseInt(dateStr.split("-")[2]);
+	const row = result.value.rows.find(
+		(r) =>
+			r.employee === w.employee &&
+			r.month === w.month &&
+			r.year === w.year &&
+			r.day === day,
+	);
+	return row ? row.hours : null;
+}
+
+// Preview what the new total would be if the pending correction were applied
+function previewTotal(w: ExtractionWarning, i: number): number | null {
+	if (
+		!result.value ||
+		!correctionDate.value[i] ||
+		correctionHours.value[i] === null
+	)
+		return null;
+	const day = parseInt(correctionDate.value[i]!.split("-")[2]);
+	const newHours = correctionHours.value[i]!;
+	const sumWithoutDay = result.value.rows
+		.filter(
+			(r) =>
+				r.employee === w.employee &&
+				r.month === w.month &&
+				r.year === w.year &&
+				r.day !== day,
+		)
+		.reduce((acc, r) => acc + r.hours, 0);
+	return (
+		Math.round((sumWithoutDay + (newHours > 0 ? newHours : 0)) * 10000) /
+		10000
+	);
+}
+
+// ── Apply corrections ────────────────────────────────────────────────
+
+function applyRowCorrection(i: number, w: ExtractionWarning) {
+	if (
+		!result.value ||
+		!correctionDate.value[i] ||
+		correctionHours.value[i] === null
+	)
+		return;
+
+	const parts = correctionDate.value[i]!.split("-");
+	const year = parseInt(parts[0]);
+	const month = parseInt(parts[1]);
+	const day = parseInt(parts[2]);
+	const newHours = correctionHours.value[i]!;
+
+	const existingIdx = result.value.rows.findIndex(
+		(r) =>
+			r.employee === w.employee &&
+			r.year === year &&
+			r.month === month &&
+			r.day === day,
+	);
+
+	if (newHours <= 0) {
+		// Remove the row if it exists
+		if (existingIdx !== -1) result.value.rows.splice(existingIdx, 1);
+	} else if (existingIdx !== -1) {
+		// Update existing row in place
+		result.value.rows[existingIdx].hours = newHours;
+	} else {
+		// Add new row for a previously missing day
+		const dateStr = `${String(day).padStart(2, "0")}/${String(month).padStart(2, "0")}/${year}`;
+		const newRow: ExtractedRow = {
+			date: dateStr,
+			employee: w.employee,
+			hours: newHours,
+			month,
+			year,
+			day,
+			sourceFile: "correzione manuale",
+		};
+		result.value.rows.push(newRow);
+		// Keep rows sorted
+		result.value.rows.sort((a, b) => {
+			const name = a.employee.localeCompare(b.employee);
+			if (name !== 0) return name;
+			if (a.year !== b.year) return a.year - b.year;
+			if (a.month !== b.month) return a.month - b.month;
+			return a.day - b.day;
+		});
+	}
+
+	// Reset correction fields for this warning
+	correctionDate.value[i] = null;
+	correctionHours.value[i] = null;
+
+	// Auto-acknowledge and close if diff is now within tolerance
+	if (liveDiff(w) <= 0.1) {
+		acknowledged.value[i] = true;
+		correctionOpen.value[i] = false;
+	}
+
+	// Persist to sessionStorage so a page refresh keeps the corrections
+	sessionStorage.setItem("lul_result", JSON.stringify(result.value));
+}
+
+function applyTotalCorrection(i: number, w: ExtractionWarning) {
+	if (correctionNewTotal.value[i] === null) return;
+	overriddenDeclared.value.set(
+		warningKey(w),
+		Number(correctionNewTotal.value[i]),
+	);
+	correctionNewTotal.value[i] = null;
+
+	if (liveDiff(w) <= 0.1) {
+		acknowledged.value[i] = true;
+		correctionOpen.value[i] = false;
+	}
+}
+
+// ── Mount ────────────────────────────────────────────────────────────
 onMounted(() => {
 	try {
 		const stored = sessionStorage.getItem("lul_result");
 		if (stored) {
 			result.value = JSON.parse(stored);
-			// Initialize acknowledged array
-			acknowledged.value = new Array(
-				result.value?.warnings?.length ?? 0,
-			).fill(false);
+			const len = result.value?.warnings?.length ?? 0;
+			acknowledged.value = new Array(len).fill(false);
+			correctionOpen.value = new Array(len).fill(false);
+			correctionMode.value = new Array(len).fill("rows");
+			correctionDate.value = new Array(len).fill(null);
+			correctionHours.value = new Array(len).fill(null);
+			correctionNewTotal.value = new Array(len).fill(null);
 		}
 	} catch {
 		// ignore
 	}
 });
 
+// ── Computed ─────────────────────────────────────────────────────────
 const filteredRows = computed(() => {
 	if (!result.value) return [];
 	if (!filterEmployee.value) return result.value.rows;
@@ -426,17 +892,16 @@ const employeeSummaries = computed(() => {
 		.sort((a, b) => a.name.localeCompare(b.name));
 });
 
+// ── Download ─────────────────────────────────────────────────────────
 async function downloadExcel() {
 	if (!result.value || !canDownload.value) return;
 	isExporting.value = true;
-
 	try {
 		const blob = await $fetch<Blob>("/api/export", {
 			method: "POST",
 			body: { rows: result.value.rows },
 			responseType: "blob",
 		});
-
 		const url = URL.createObjectURL(blob);
 		const a = document.createElement("a");
 		a.href = url;
@@ -453,3 +918,151 @@ async function downloadExcel() {
 	}
 }
 </script>
+
+<style scoped>
+/* Warning block — wraps summary row + correction panel together */
+.warning-block {
+	display: flex;
+	flex-direction: column;
+	background: var(--c-bg);
+	border-radius: var(--radius-md);
+	overflow: hidden;
+}
+
+.warning-summary-row {
+	padding: 14px 16px;
+	display: flex;
+	align-items: flex-start;
+	gap: 12px;
+}
+
+/* Correction panel slides in below the summary row */
+.correction-panel {
+	border-top: 1px solid var(--c-border);
+	background: var(--c-accent-light);
+	padding: 16px;
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+
+.correction-title {
+	font-size: 0.6875rem;
+	font-weight: 700;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: var(--c-accent);
+}
+
+/* Two-option mode selector */
+.correction-modes {
+	display: flex;
+	gap: 8px;
+}
+
+.correction-mode {
+	flex: 1;
+	display: flex;
+	align-items: flex-start;
+	gap: 8px;
+	padding: 10px 12px;
+	background: var(--c-surface);
+	border: 1.5px solid var(--c-border);
+	border-radius: var(--radius-md);
+	cursor: pointer;
+	transition: border-color 0.15s;
+}
+
+.correction-mode.active {
+	border-color: var(--c-accent);
+}
+
+.mode-label {
+	font-size: 0.8125rem;
+	font-weight: 500;
+	color: var(--c-text-primary);
+	margin: 0 0 2px;
+}
+
+.mode-sub {
+	font-size: 0.75rem;
+	color: var(--c-text-secondary);
+	margin: 0;
+}
+
+/* White content box inside the correction panel */
+.correction-content {
+	background: var(--c-surface);
+	border: 1px solid var(--c-border);
+	border-radius: var(--radius-md);
+	padding: 14px 16px;
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+
+.correction-field-row {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	flex-wrap: wrap;
+}
+
+.correction-field-label {
+	font-size: 0.8125rem;
+	color: var(--c-text-secondary);
+	min-width: 110px;
+	flex-shrink: 0;
+}
+
+.correction-date-input {
+	width: 170px;
+}
+
+.correction-hours-input {
+	width: 90px;
+	text-align: right;
+}
+
+.correction-current-value {
+	font-size: 0.8125rem;
+	color: var(--c-text-secondary);
+	background: var(--c-bg);
+	border-radius: var(--radius-sm);
+	padding: 4px 8px;
+}
+
+.correction-hint {
+	font-size: 0.75rem;
+	color: var(--c-text-tertiary);
+	font-style: italic;
+}
+
+.correction-footer {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	padding-top: 4px;
+}
+
+.correction-preview {
+	font-size: 0.8125rem;
+	color: var(--c-text-secondary);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+	.correction-modes {
+		flex-direction: column;
+	}
+	.correction-field-row {
+		flex-direction: column;
+		align-items: flex-start;
+	}
+	.correction-date-input,
+	.correction-hours-input {
+		width: 100%;
+	}
+}
+</style>

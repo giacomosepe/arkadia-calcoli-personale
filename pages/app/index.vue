@@ -104,19 +104,88 @@
 							/>
 							<div class="drop-icon">
 								<svg
-									width="22"
-									height="22"
-									viewBox="0 0 24 24"
+									width="48"
+									height="48"
+									viewBox="0 0 80 80"
 									fill="none"
-									stroke="currentColor"
-									stroke-width="1.5"
 								>
-									<path
-										d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
+									<rect
+										width="80"
+										height="80"
+										rx="18"
+										fill="#E63946"
 									/>
-									<polyline points="14 2 14 8 20 8" />
-									<line x1="12" y1="18" x2="12" y2="12" />
-									<line x1="9" y1="15" x2="15" y2="15" />
+									<rect
+										x="14"
+										y="10"
+										width="36"
+										height="46"
+										rx="4"
+										fill="white"
+									/>
+									<path
+										d="M40 10 L40 22 L52 22 Z"
+										fill="#FFCDD2"
+									/>
+									<path
+										d="M40 10 L52 22 L40 22 Z"
+										fill="#C62828"
+									/>
+									<rect
+										x="19"
+										y="30"
+										width="20"
+										height="2.5"
+										rx="1.25"
+										fill="#E63946"
+									/>
+									<rect
+										x="19"
+										y="36"
+										width="26"
+										height="2.5"
+										rx="1.25"
+										fill="#E63946"
+									/>
+									<rect
+										x="19"
+										y="42"
+										width="16"
+										height="2.5"
+										rx="1.25"
+										fill="#E63946"
+									/>
+									<rect
+										x="52"
+										y="38"
+										width="16"
+										height="22"
+										rx="5"
+										fill="#C62828"
+									/>
+									<text
+										x="60"
+										y="53"
+										text-anchor="middle"
+										font-family="system-ui, sans-serif"
+										font-size="9"
+										font-weight="800"
+										fill="white"
+									>
+										PDF
+									</text>
+									<circle
+										cx="58"
+										cy="13"
+										r="5"
+										fill="#FFD600"
+									/>
+									<circle
+										cx="58"
+										cy="13"
+										r="2.5"
+										fill="white"
+									/>
 								</svg>
 							</div>
 							<p class="drop-title">Trascina i PDF qui</p>
@@ -316,58 +385,87 @@
 		<div class="outer-panel">
 			<NuxtLink to="/app/pivot" class="db-card">
 				<div class="excel-icon">
-					<svg width="28" height="28" viewBox="0 0 24 24" fill="none">
-						<path
-							d="M2 4.5C2 3.67 2.67 3 3.5 3H12l5 5v11.5c0 .83-.67 1.5-1.5 1.5h-13C2.67 21 2 20.33 2 19.5V4.5z"
+					<svg width="48" height="48" viewBox="0 0 80 80" fill="none">
+						<rect width="80" height="80" rx="18" fill="#1D6F42" />
+						<rect
+							x="12"
+							y="10"
+							width="36"
+							height="46"
+							rx="4"
 							fill="white"
-							opacity="0.2"
+						/>
+						<path d="M38 10 L38 22 L50 22 Z" fill="#C8E6C9" />
+						<path d="M38 10 L50 22 L38 22 Z" fill="#1B5E20" />
+						<rect
+							x="17"
+							y="27"
+							width="26"
+							height="2"
+							rx="1"
+							fill="#E0E0E0"
+						/>
+						<rect
+							x="17"
+							y="31"
+							width="26"
+							height="2"
+							rx="1"
+							fill="#E0E0E0"
+						/>
+						<rect
+							x="17"
+							y="35"
+							width="26"
+							height="2"
+							rx="1"
+							fill="#E0E0E0"
+						/>
+						<rect
+							x="17"
+							y="39"
+							width="26"
+							height="2"
+							rx="1"
+							fill="#E0E0E0"
+						/>
+						<line
+							x1="25"
+							y1="25"
+							x2="25"
+							y2="43"
+							stroke="#E0E0E0"
+							stroke-width="1.5"
+						/>
+						<line
+							x1="33"
+							y1="25"
+							x2="33"
+							y2="43"
+							stroke="#E0E0E0"
+							stroke-width="1.5"
+						/>
+						<rect
+							x="50"
+							y="38"
+							width="18"
+							height="22"
+							rx="5"
+							fill="#145A32"
 						/>
 						<text
-							x="3.5"
-							y="16"
-							font-size="7.5"
-							font-weight="700"
-							fill="white"
+							x="59"
+							y="51"
+							text-anchor="middle"
 							font-family="system-ui, sans-serif"
+							font-size="8.5"
+							font-weight="800"
+							fill="white"
 						>
 							XLS
 						</text>
-						<rect
-							x="13.5"
-							y="12.5"
-							width="8"
-							height="6.5"
-							rx="0.75"
-							fill="white"
-							opacity="0.2"
-						/>
-						<line
-							x1="14.5"
-							y1="14.5"
-							x2="20.5"
-							y2="14.5"
-							stroke="white"
-							stroke-width="0.9"
-							opacity="0.85"
-						/>
-						<line
-							x1="14.5"
-							y1="16.5"
-							x2="20.5"
-							y2="16.5"
-							stroke="white"
-							stroke-width="0.9"
-							opacity="0.85"
-						/>
-						<line
-							x1="17.5"
-							y1="12.5"
-							x2="17.5"
-							y2="19"
-							stroke="white"
-							stroke-width="0.9"
-							opacity="0.85"
-						/>
+						<circle cx="60" cy="13" r="5" fill="#FFD600" />
+						<circle cx="60" cy="13" r="2.5" fill="white" />
 					</svg>
 				</div>
 				<div style="flex: 1">

@@ -18,7 +18,7 @@ Hours conversion (H:MM → decimal):
 8:00→8.0  7:30→7.5  4:45→4.75  0:30→0.5  0:00→0.0
 
 Failure rules:
-- Daily hours cell empty, missing, or "--" → hours: 0
+- Daily hours cell empty, missing, or is a letter or is a value different from a number like for example: "-", "--" → hours: 0
 - Monthly total not found or unreadable → declared_total: "not found"`;
 
 // ─── User prompt ──────────────────────────────────────────────────────────────
