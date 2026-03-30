@@ -406,9 +406,10 @@
 													"
 												>
 													{{
-													previewTotal(w, i) !== null
-													? toHHMM(previewTotal(w, i)!)
-													: "—"
+														previewTotal(w, i) !== null
+															? toHHMM(previewTotal(w, i)!)
+															: "—"
+													}}
 													}}
 												</strong>
 											</span>
@@ -572,6 +573,7 @@
 							<td class="td-mono">{{ row.date }}</td>
 							<td style="font-weight: 500">{{ row.employee }}</td>
 							<td class="td-hours">{{ toHHMM(row.hours) }}</td>
+							</td>
 							<td
 								class="text-secondary text-sm"
 								style="
