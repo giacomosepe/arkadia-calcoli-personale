@@ -20,34 +20,8 @@
 						<span class="card-title">Configurazione</span>
 					</div>
 					<div class="card-body stack stack-md">
-
-						<!-- Step 1: Select company -->
 						<div class="step-row">
 							<span class="step-badge">1</span>
-							<div class="form-group" style="flex: 1">
-								<label class="form-label">
-									Azienda
-									<span style="color: var(--c-danger)">*</span>
-								</label>
-								<select
-									:value="selectedCompanyId"
-									class="form-select"
-									@change="onCompanySelect(($event.target as HTMLSelectElement).value)"
-								>
-									<option value="" disabled>Seleziona azienda…</option>
-									<option v-for="c in companies" :key="c.id" :value="c.id">
-										{{ c.name }}
-									</option>
-								</select>
-								<p class="text-sm text-secondary mt-sm">
-									I campi ore vengono compilati automaticamente dalla configurazione.
-								</p>
-							</div>
-						</div>
-
-						<!-- Step 2 + 3: Auto-filled fields, still editable as override -->
-						<div class="step-row">
-							<span class="step-badge">2</span>
 							<div class="form-group" style="flex: 1">
 								<label class="form-label">
 									Colonna ore giornaliere nel PDF
@@ -61,13 +35,13 @@
 									spellcheck="false"
 								/>
 								<p class="text-sm text-secondary mt-sm">
-									Compilato automaticamente. Modifica solo se il PDF usa un'intestazione diversa.
+									Esattamente come appare nell'intestazione della colonna nel PDF.
 								</p>
 							</div>
 						</div>
 
 						<div class="step-row">
-							<span class="step-badge">3</span>
+							<span class="step-badge">2</span>
 							<div class="form-group" style="flex: 1">
 								<label class="form-label">
 									Etichetta totale mensile nel PDF
@@ -81,19 +55,18 @@
 									spellcheck="false"
 								/>
 								<p class="text-sm text-secondary mt-sm">
-									Compilato automaticamente. Modifica solo se necessario.
+									Come appare nella tabella di sommario nel PDF.
 								</p>
 							</div>
 						</div>
-
 					</div>
 				</div>
 
-				<!-- RIGHT — Carica i PDF: step 4 -->
+				<!-- RIGHT — Carica i PDF: step 3 -->
 				<div class="card">
 					<div class="card-header">
 						<span class="card-title">Carica i PDF</span>
-						<span class="step-badge">4</span>
+						<span class="step-badge">3</span>
 					</div>
 					<div class="card-body stack stack-md">
 						<div
@@ -628,24 +601,12 @@
 <script setup lang="ts">
 definePageMeta({ layout: "app" });
 
-import type { ExtractionResult, CompanyConfig } from "~/types";
+import type { ExtractionResult } from "~/types";
 
 const files = ref<File[]>([]);
 const isDragging = ref(false);
 const dailyColumn = ref("");
 const summaryLabel = ref("");
-const selectedCompanyId = ref("");
-
-const { data: companies } = await useFetch<CompanyConfig[]>('/api/companies');
-
-function onCompanySelect(id: string) {
-  selectedCompanyId.value = id;
-  const company = companies.value?.find((c) => c.id === id);
-  if (company) {
-    dailyColumn.value = company.dailyColumn;
-    summaryLabel.value = company.summaryLabel;
-  }
-}
 const isProcessing = ref(false);
 const statusMessage = ref("");
 const statusType = ref<"processing" | "success" | "error" | "warning">(
@@ -661,7 +622,6 @@ const { data: apiConfig } = await useFetch("/api/check-config");
 const canRun = computed(
 	() =>
 		files.value.length > 0 &&
-		selectedCompanyId.value !== "" &&
 		dailyColumn.value.trim() !== "" &&
 		summaryLabel.value.trim() !== "",
 );
@@ -717,10 +677,9 @@ async function confirmExtraction() {
 	statusMessage.value = `Invio di ${files.value.length} PDF a Claude…`;
 
 	try {
-		const company = companies.value?.find((c) => c.id === selectedCompanyId.value);
 		const formData = new FormData();
-		formData.append("vendorName", company?.vendorName ?? "Unknown");
-		formData.append("nameLocation", company?.nameLocation ?? "Find the employee full name in the header area of the page.");
+		formData.append("vendorName", "Italian LUL payroll document");
+		formData.append("nameLocation", "Find the employee full name in the header area of the page. It may appear near labels like 'Cognome e Nome', 'COGNOME NOME e INDIRIZZO', or similar. Apply surname-first formatting from the system rules.");
 		formData.append("dailyColumn", dailyColumn.value);
 		formData.append("summaryLabel", summaryLabel.value);
 		files.value.forEach((f) => formData.append("files", f));
