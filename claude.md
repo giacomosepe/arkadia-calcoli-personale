@@ -122,9 +122,9 @@ rows from a file. Both produce identical output — DB ALL + employee pivot shee
 
 ## Extraction flow (step by step)
 
-1. User uploads PDFs (any combination — one per employee, one per month, mixed)
+1. User uploads PDFs (one per employee per month, or one per month per employee)
 2. User enters two required config fields:
-   - **Colonna ore giornaliere** (`dailyHoursColumn`) — column header in the GIORNO table (e.g. `H Ord`)
+   - **Colonna ore giornaliere** (`dailyHoursColumn`) — column header in the table (e.g. `H Ord`)
    - **Totale ore mensili** (`totalHoursLabel`) — label for the monthly total in the summary section (e.g. `ORE ORDINARIE`)
 3. User clicks "Avvia estrazione" → confirmation modal shows files + config
 4. User confirms → server splits each PDF into single pages via pdf-lib
@@ -138,6 +138,16 @@ rows from a file. Both produce identical output — DB ALL + employee pivot shee
 ---
 
 ## The Claude prompt (`server/utils/claude.ts`)
+
+> ⚠️ **DO NOT EDIT THE PROMPTS IN `claude.ts` WITHOUT EXPLICIT OWNER APPROVAL**
+> This applies to both Claude.ai and Claude Code.
+> The prompts in `SYSTEM_PROMPT` and `buildUserPrompt()` have been carefully tuned
+> through live testing against real payroll PDFs. Any change — even one that looks
+> like an improvement — can silently break extraction accuracy across all document
+> formats. Before touching anything in these prompts, ask the project owner first
+> and describe exactly what you intend to change and why.
+> The only exception is adding a new example to illustrate an existing rule
+> (e.g. a new HH:MM conversion example), and even then — ask first.
 
 ### Design principles (important — read before editing)
 
@@ -185,36 +195,46 @@ Response is under 400 tokens in practice. 2048 is safe headroom without waste.
 ### Current prompts (source of truth is claude.ts — these are for reference)
 
 ```
-SYSTEM_PROMPT:
-You are a data extraction engine for Italian LUL payroll documents.
-Each page you receive contains exactly one employee's attendance record for exactly one calendar month.
+SYSTEM_PROMPT extract from file /utils/claude.ts : 
+You are a data extraction engine for Italian LUL (Libro Unico del Lavoro) payroll documents.
+Each page contains exactly one employee's attendance record for one calendar month.
+You will extract every row of the appropriate daily hours column as indicated in the Locate information instructions .
 Return ONLY a valid JSON object. No explanation, no markdown, no prose.
 
-Employee name rules:
-- Find the field containing surname and given name (may be labelled "Cognome e Nome" or "Nome e Cognome")
+- The instructions for this document will tell you where to find the name
 - Always output as: SURNAME GIVENNAME — all caps, surname first, single space, no comma
-- Examples: "Mario Rossi" → "ROSSI MARIO" | "BIANCHI ANNA MARIA" → "BIANCHI ANNA MARIA"
+- If the name appears as "Firstname Lastname" reverse it: "Andrea Albanese" → "ALBANESE ANDREA"
+- If already "LASTNAME FIRSTNAME" keep it: "ALBANESE ANDREA" stays "ALBANESE ANDREA"
+- Multi-word names: "BIANCHI ANNA MARIA" keep last name in front, if you can't tell the last name, then it stays as-is
+- 
+Hours conversion (H:MM → decimal) — applies to ALL values including declared_total:
+PDF will always display hours, they will be formatted as H:MM format (e.g. "8:00", "7:30", "4:45", "0:30", "0:00", "172:30") or in other formats (e.g. "168.0" or "168" or "8.30" or "8,30").
+If a value has no colon and looks like a plain number (168 or 168.0) treat it as hours.
 
-Hours conversion (H:MM → decimal):
-8:00→8.0  7:30→7.5  4:45→4.75  0:30→0.5  0:00→0.0
-
-Failure rules:
-- Daily hours cell empty, missing, or "--" → hours: 0
-- Monthly total not found or unreadable → declared_total: "not found"
+Zero/empty rules:
+- Cell empty, contains only "-" or "--", or contains a letter code or have a code have value = zero → hours: 0, omit from days array
+- Omit ALL days where hours = 0 (weekends, holidays, absences)
+- Monthly total not found or unreadable → declared_total: "not found"`;
 ```
 
 ```
 buildUserPrompt(dailyHoursColumn, totalHoursLabel):
 Extract from this LUL page:
+Locate information instructions:
+Employee name: ${buildNameInstruction(nameOrder)}
 
-- Employee name (see system rules for formatting)
-- Month (1–12) and year
-- Daily hours: column "${dailyHoursColumn}" in the GIORNO attendance table
-- Monthly total: label "${totalHoursLabel}" in the hours summary section
+Daily hours — extract ONLY from the "${dailyHoursColumn}" column indicated by user in the prompt through variables dynamic prompt:
+- This is the numeric sub-column inside the section of the attendance table. Only take the value from the column identified by the set label
+- A valid value is a BARE NUMBER only (e.g. "8,00" or "6:45", or 8.30) with NO letter code before or after it on the same cell
+- If a row shows a letter code before number (e.g. "MA 8,00", "FE 8,00", "RL 2,00", "ST 0,30") that is a different entry — IGNORE IT entirely, even if it appears in a position that looks like the appropriate column
+- Do NOT read any other column that is not the appropriate column indeicated by user in the prompt input.
 
-Only include days where hours > 0. Zero-hour days (weekends, holidays, absences) are omitted.
 
-Return this exact JSON — nothing else:
+Monthly total:
+- Find the row or cell labelled by the user through the prompt variable, in the summary/totals section typically at the bottom of the page
+- Convert to decimal using the rules in the system prompt
+
+Return ONLY the JSON. Nothing else:
 {"employee":"ROSSI MARIO","month":3,"year":2024,"declared_total":168.0,"days":[{"day":1,"hours":8.0},{"day":3,"hours":7.5},{"day":4,"hours":4.75}]}
 ```
 

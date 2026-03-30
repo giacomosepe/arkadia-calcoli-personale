@@ -35,27 +35,41 @@ Zero/empty rules:
 // Built from company config. Describes this specific vendor's document layout.
 // Variables:
 //   vendorName       → human name of the payroll software/vendor (e.g. "Zucchetti")
-//   nameLocation     → where/how to find the employee name in this format
+//   nameOrder        → 'surname_first' | 'name_first' — order of the name as it appears in the PDF
 //   dailyHoursColumn → exact column header for daily worked hours
 //   totalHoursLabel  → exact label for the monthly total row in the summary section
+function buildNameInstruction(
+  nameOrder: "surname_first" | "name_first",
+): string {
+  if (nameOrder === "surname_first") {
+    return `Find the employee full name in the header area of the page.
+The name is written SURNAME FIRSTNAME (e.g. "ROSSI MARIO", "BELLINI MATTIA"). It is already in the correct order — output it as-is in all caps.`;
+  } else {
+    return `Find the employee full name in the header area of the page
+The name is written FIRSTNAME SURNAME (e.g. "MARIO ROSSI", "ANDREA ALBANESE"). You MUST reverse it to SURNAME FIRSTNAME before outputting (e.g. "MARIO ROSSI" → "ROSSI MARIO"). The output must be in all caps.`;
+  }
+}
+
 function buildUserPrompt(
   vendorName: string,
-  nameLocation: string,
+  nameOrder: "surname_first" | "name_first",
   dailyHoursColumn: string,
   totalHoursLabel: string,
 ): string {
   return `This LUL page is from: ${vendorName}
 
 Locate information instructions:
-Employee name: ${nameLocation}
+Employee name: ${buildNameInstruction(nameOrder)}
 
-Daily hours — extract ONLY from the column with the title or Column header: "${dailyHoursColumn}"
-- This column is inside the main "hours worked" section of the daily attendance table
-- Do NOT read from any other column such as absence/justification columns (e.g. GIUSTIFICATIVI, ASSENZE, CODICE) even if the worked-hours cell is empty for that day
-- If the worked-hours cell is empty or zero for a day → hours: 0, omit from output
+Daily hours — extract ONLY from the "${dailyHoursColumn}" column:
+- This is the numeric sub-column inside the section of the attendance table. Only take the value from the column identified by "${dailyHoursColumn}" label
+- A valid value is a BARE NUMBER only (e.g. "8,00" or "6:45", or 8.30) with NO letter code before or after it on the same cell
+- If a row shows a letter code before number (e.g. "MA 8,00", "FE 8,00", "RL 2,00", "ST 0,30") that is a different entry — IGNORE IT entirely, even if it appears in a position that looks like the "${dailyHoursColumn}" column
+- Do NOT read any other column that is not the "${dailyHoursColumn}" column
+
 
 Monthly total:
-- Find the row or cell labelled "${totalHoursLabel}" in the summary/totals section at the bottom of the page
+- Find the row or cell labelled "${totalHoursLabel}" in the summary/totals section typically at the bottom of the page
 - Convert to decimal using the rules in the system prompt
 
 Return ONLY the JSON. Nothing else.`;
@@ -79,7 +93,7 @@ interface ClaudeResponse {
 export async function extractFromPdf(
   pdfBase64: string,
   vendorName: string,
-  nameLocation: string,
+  nameOrder: "surname_first" | "name_first",
   dailyHoursColumn: string,
   totalHoursLabel: string,
   sourceFile: string,
@@ -110,7 +124,7 @@ export async function extractFromPdf(
                 type: "text",
                 text: buildUserPrompt(
                   vendorName,
-                  nameLocation,
+                  nameOrder,
                   dailyHoursColumn,
                   totalHoursLabel,
                 ),

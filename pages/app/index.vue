@@ -59,14 +59,59 @@
 								</p>
 							</div>
 						</div>
+
+						<div class="step-row">
+							<span class="step-badge">3</span>
+							<div class="form-group" style="flex: 1">
+								<label class="form-label">
+									Ordine nome dipendente nel PDF
+									<span style="color: var(--c-danger)">*</span>
+								</label>
+								<div class="name-order-group">
+									<label
+										class="name-order-option"
+										:class="{ active: nameOrder === 'surname_first' }"
+									>
+										<input
+											type="radio"
+											v-model="nameOrder"
+											value="surname_first"
+											style="accent-color: var(--c-accent)"
+										/>
+										<div>
+											<p class="name-order-label">COGNOME NOME</p>
+											<p class="name-order-example">es. ROSSI MARIO</p>
+										</div>
+									</label>
+									<label
+										class="name-order-option"
+										:class="{ active: nameOrder === 'name_first' }"
+									>
+										<input
+											type="radio"
+											v-model="nameOrder"
+											value="name_first"
+											style="accent-color: var(--c-accent)"
+										/>
+										<div>
+											<p class="name-order-label">NOME COGNOME</p>
+											<p class="name-order-example">es. MARIO ROSSI</p>
+										</div>
+									</label>
+								</div>
+								<p class="text-sm text-secondary mt-sm">
+									Come appare il nome nella scheda PDF. L'output sarà sempre COGNOME NOME.
+								</p>
+							</div>
+						</div>
 					</div>
 				</div>
 
-				<!-- RIGHT — Carica i PDF: step 3 -->
+				<!-- RIGHT — Carica i PDF: step 4 -->
 				<div class="card">
 					<div class="card-header">
 						<span class="card-title">Carica i PDF</span>
-						<span class="step-badge">3</span>
+						<span class="step-badge">4</span>
 					</div>
 					<div class="card-body stack stack-md">
 						<div
@@ -539,18 +584,31 @@
 								>
 							</p>
 							<p class="text-sm">
-								<span class="fw-500">Etichetta Totale:</span>
-								<code
-									style="
-										background: var(--c-surface);
-										padding: 1px 6px;
-										border-radius: 4px;
-										font-size: 0.75rem;
-										margin-left: 6px;
-									"
-									>{{ summaryLabel }}</code
-								>
+							<span class="fw-500">Etichetta Totale:</span>
+							<code
+							style="
+							background: var(--c-surface);
+							padding: 1px 6px;
+							border-radius: 4px;
+							font-size: 0.75rem;
+							margin-left: 6px;
+							"
+							>{{ summaryLabel }}</code
+							>
 							</p>
+								<p class="text-sm">
+									<span class="fw-500">Ordine nome:</span>
+									<code
+										style="
+											background: var(--c-surface);
+											padding: 1px 6px;
+											border-radius: 4px;
+											font-size: 0.75rem;
+											margin-left: 6px;
+										"
+										>{{ nameOrder === 'surname_first' ? 'COGNOME NOME' : 'NOME COGNOME' }}</code
+									>
+								</p>
 						</div>
 						<button
 							class="btn btn-primary btn-lg"
@@ -607,6 +665,7 @@ const files = ref<File[]>([]);
 const isDragging = ref(false);
 const dailyColumn = ref("");
 const summaryLabel = ref("");
+const nameOrder = ref<'surname_first' | 'name_first'>('surname_first');
 const isProcessing = ref(false);
 const statusMessage = ref("");
 const statusType = ref<"processing" | "success" | "error" | "warning">(
@@ -623,7 +682,8 @@ const canRun = computed(
 	() =>
 		files.value.length > 0 &&
 		dailyColumn.value.trim() !== "" &&
-		summaryLabel.value.trim() !== "",
+		summaryLabel.value.trim() !== "" &&
+		nameOrder.value !== "",
 );
 
 function handleRunClick() {
@@ -679,7 +739,7 @@ async function confirmExtraction() {
 	try {
 		const formData = new FormData();
 		formData.append("vendorName", "Italian LUL payroll document");
-		formData.append("nameLocation", "Find the employee full name in the header area of the page. It may appear near labels like 'Cognome e Nome', 'COGNOME NOME e INDIRIZZO', or similar. Apply surname-first formatting from the system rules.");
+		formData.append("nameOrder", nameOrder.value);
 		formData.append("dailyColumn", dailyColumn.value);
 		formData.append("summaryLabel", summaryLabel.value);
 		files.value.forEach((f) => formData.append("files", f));
@@ -837,6 +897,44 @@ async function confirmExtraction() {
 .db-card-subtitle {
 	font-size: 0.8125rem;
 	color: var(--c-text-secondary);
+}
+
+/* Name order selector */
+.name-order-group {
+	display: flex;
+	gap: 8px;
+}
+
+.name-order-option {
+	flex: 1;
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 10px 12px;
+	background: var(--c-surface);
+	border: 1.5px solid var(--c-border);
+	border-radius: var(--radius-md);
+	cursor: pointer;
+	transition: border-color 0.15s;
+}
+
+.name-order-option.active {
+	border-color: var(--c-accent);
+	background: var(--c-accent-light);
+}
+
+.name-order-label {
+	font-size: 0.8125rem;
+	font-weight: 500;
+	color: var(--c-text-primary);
+	margin: 0 0 2px;
+}
+
+.name-order-example {
+	font-size: 0.75rem;
+	color: var(--c-text-secondary);
+	margin: 0;
+	font-family: var(--font-mono);
 }
 
 /* Responsive — Tailwind md breakpoint equivalent */
