@@ -44,17 +44,16 @@
 							class="text-5xl font-bold tracking-tight sm:text-6xl"
 							style="color: var(--c-text-primary)"
 						>
-							Dati del personale: da PDF a tabelle excel in 3
-							minuti invece di 3 giorni
+							I dati del LUL dai PDF a excel in 3 minuti invece di
+							3 giorni
 						</h1>
 						<p
 							class="mt-6 text-lg leading-8"
 							style="color: var(--c-text-secondary)"
 						>
 							LUL Extractor utilizza l'intelligenza artificiale
-							per estrarre genera automaticamente fogli Excel
-							pronti all'uso partendo dai PDF del Libro Unico del
-							Lavoro.
+							per estrarre e generare un foglio Excel partendo dai
+							PDF del Libro Unico del Lavoro.
 						</p>
 						<div
 							class="mt-10 flex items-center justify-center gap-x-6"
@@ -147,14 +146,16 @@
 						class="mt-2 text-4xl font-bold tracking-tight sm:text-5xl"
 						style="color: var(--c-text-primary)"
 					>
-						Il processo e' molto facile. Non c'e' nulla da imparare.
+						Carica. Controlla. Scarica il file excel.
 					</p>
 					<p
 						class="mt-6 text-lg leading-8"
 						style="color: var(--c-text-secondary)"
 					>
-						Non c'e' piu' trascrizione manuale. Basta caricare i
-						PDF, e la app produce scarica un Excel da scaricare.
+						Basta trascrizione manuale dei dati per ogni dipendente.
+						Basta errori. Con Lul Extractor basta caricare il PDF,
+						inserire le coordinate delle info, e il file Excel e'
+						pronto.
 					</p>
 				</div>
 
@@ -222,7 +223,8 @@
 								<p class="flex-auto">
 									Indica sull'interfaccia il titolo della
 									colonna delle ore di lavoro e del riepilogo
-									finale.
+									finale per ridurre ancora di piu' il rischio
+									di errori.
 								</p>
 							</dd>
 						</div>
@@ -250,10 +252,10 @@
 								style="color: var(--c-text-secondary)"
 							>
 								<p class="flex-auto">
-									Nella sezione risultati vedrai il file Excel
-									pronto per essere scaricato. Verifica che i
-									dati siano corretti e clicca sul pulsante
-									"Scarica" per scaricarlo.
+									Nella sezione risultati vedrai la tabella
+									pronta per essere scaricata come file excel.
+									Verifica che i dati siano corretti e clicca
+									sul pulsante "Scarica".
 								</p>
 							</dd>
 						</div>
