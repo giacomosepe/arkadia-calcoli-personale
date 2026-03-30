@@ -215,7 +215,9 @@
 										PDF dichiara
 										<strong
 											style="color: var(--c-text-primary)"
-											>{{ toHHMM(liveDeclared(w)) }}</strong
+											>{{
+												toHHMM(liveDeclared(w))
+											}}</strong
 										>
 										· estratte
 										<strong
@@ -406,8 +408,14 @@
 													"
 												>
 													{{
-														previewTotal(w, i) !== null
-															? toHHMM(previewTotal(w, i)!)
+														previewTotal(w, i) !==
+														null
+															? toHHMM(
+																	previewTotal(
+																		w,
+																		i,
+																	)!,
+																)
 															: "—"
 													}}
 													}}
@@ -477,7 +485,13 @@
 														correctionNewTotal[
 															i
 														] !== null
-															? toHHMM(Number(correctionNewTotal[i]))
+															? toHHMM(
+																	Number(
+																		correctionNewTotal[
+																			i
+																		],
+																	),
+																)
 															: "—"
 													}}
 												</strong>
@@ -573,7 +587,7 @@
 							<td class="td-mono">{{ row.date }}</td>
 							<td style="font-weight: 500">{{ row.employee }}</td>
 							<td class="td-hours">{{ toHHMM(row.hours) }}</td>
-							</td>
+
 							<td
 								class="text-secondary text-sm"
 								style="
@@ -623,7 +637,7 @@
 </template>
 
 <script setup lang="ts">
-import { toHHMM } from '~/utils/format'
+import { toHHMM } from "~/utils/format";
 definePageMeta({ layout: "app" });
 
 import type {
