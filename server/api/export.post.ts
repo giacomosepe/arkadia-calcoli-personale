@@ -1,5 +1,6 @@
 import ExcelJS from "exceljs";
 import type { ExportRequest } from "~/types";
+import { toExcelDuration, EXCEL_DURATION_FORMAT } from "~/utils/format";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -18,19 +19,6 @@ const MONTH_NAMES = [
   "Novembre",
   "Dicembre",
 ];
-
-/**
- * Converts decimal hours to HH:MM string.
- * Used for the employee pivot sheets display.
- * The DB ALL sheet keeps decimal — needed for summing and verification.
- */
-function decimalToHHMM(decimal: number): string {
-  if (!decimal || decimal <= 0) return "0:00";
-  const h = Math.floor(decimal);
-  const m = Math.round((decimal - h) * 60);
-  if (m === 60) return `${h + 1}:00`;
-  return `${h}:${String(m).padStart(2, "0")}`;
-}
 
 function applyHeaderStyle(row: ExcelJS.Row) {
   row.font = { bold: true, name: "Arial", size: 10 };
@@ -140,7 +128,7 @@ export default defineEventHandler(async (event) => {
 
       for (const month of months) {
         const decimal = lookup.get(month)?.get(day) ?? 0;
-        values.push(decimalToHHMM(decimal));
+        values.push(decimal > 0 ? toExcelDuration(decimal) : 0);
       }
 
       const dataRow = ws.addRow(values);
@@ -151,8 +139,10 @@ export default defineEventHandler(async (event) => {
       for (let col = 2; col <= months.length + 1; col++) {
         const cell = dataRow.getCell(col);
         cell.alignment = { horizontal: "center" };
-        if (cell.value === "0:00") {
+        cell.numFmt = EXCEL_DURATION_FORMAT;
+        if (!cell.value || cell.value === 0) {
           cell.font = { name: "Arial", size: 10, color: { argb: "FFBBBBBB" } };
+          cell.value = 0;
         }
       }
     }
@@ -167,11 +157,14 @@ export default defineEventHandler(async (event) => {
       const total = monthMap
         ? [...monthMap.values()].reduce((sum, h) => sum + h, 0)
         : 0;
-      totalValues.push(decimalToHHMM(Math.round(total * 10000) / 10000));
+      totalValues.push(toExcelDuration(Math.round(total * 10000) / 10000));
     }
 
     const totalRow = ws.addRow(totalValues);
     applyTotalStyle(totalRow, months.length);
+    for (let col = 2; col <= months.length + 1; col++) {
+      totalRow.getCell(col).numFmt = EXCEL_DURATION_FORMAT;
+    }
 
     // Freeze both axes
     ws.views = [{ state: "frozen", xSplit: 1, ySplit: 1 }];

@@ -30,3 +30,15 @@ export interface ExtractionResult {
 export interface ExportRequest {
   rows: ExtractedRow[];
 }
+
+export interface CompanyConfig {
+  id: string;
+  name: string;
+  vendorName: string;
+  nameLocation: string;
+  hoursFieldLabel: string;
+  hoursFieldCode: string;
+  dailyColumn: string;
+  summaryLabel: string;
+  outputTemplatePath: string;
+}

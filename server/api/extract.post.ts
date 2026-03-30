@@ -21,9 +21,16 @@ export default defineEventHandler(async (event) => {
     });
   }
 
+  const vendorNameField = formData.find((f) => f.name === "vendorName");
+  const nameLocationField = formData.find((f) => f.name === "nameLocation");
   const dailyColumnField = formData.find((f) => f.name === "dailyColumn");
   const summaryLabelField = formData.find((f) => f.name === "summaryLabel");
 
+  const vendorName =
+    vendorNameField?.data?.toString().trim() || "Unknown payroll software";
+  const nameLocation =
+    nameLocationField?.data?.toString().trim() ||
+    "Find the employee full name in the header area of the page.";
   const dailyColumn = dailyColumnField?.data?.toString().trim() || "";
   const summaryLabel = summaryLabelField?.data?.toString().trim() || "";
 
@@ -68,6 +75,8 @@ export default defineEventHandler(async (event) => {
 
       const result = await extractFromPdf(
         base64,
+        vendorName,
+        nameLocation,
         dailyColumn,
         summaryLabel,
         `${filename} (pagina ${i + 1})`,

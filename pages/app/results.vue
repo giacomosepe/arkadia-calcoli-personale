@@ -80,7 +80,7 @@
 					<div class="stat-label">Dipendenti</div>
 				</div>
 				<div class="stat-card">
-					<div class="stat-value">{{ totalHours.toFixed(1) }}</div>
+					<div class="stat-value">{{ toHHMM(totalHours) }}</div>
 					<div class="stat-label">Ore totali</div>
 				</div>
 				<div class="stat-card">
@@ -215,16 +215,12 @@
 										PDF dichiara
 										<strong
 											style="color: var(--c-text-primary)"
-											>{{
-												liveDeclared(w).toFixed(2)
-											}}h</strong
+											>{{ toHHMM(liveDeclared(w)) }}</strong
 										>
 										· estratte
 										<strong
 											style="color: var(--c-text-primary)"
-											>{{
-												liveActual(w).toFixed(2)
-											}}h</strong
+											>{{ toHHMM(liveActual(w)) }}</strong
 										>
 										· differenza
 										<strong
@@ -234,7 +230,7 @@
 													: 'color: var(--c-danger)'
 											"
 										>
-											{{ liveDiff(w).toFixed(2) }}h
+											{{ toHHMM(liveDiff(w)) }}
 										</strong>
 									</span>
 								</label>
@@ -362,7 +358,7 @@
 														w,
 														correctionDate[i],
 													) !== null
-														? `Valore attuale: ${currentDayValue(w, correctionDate[i])!.toFixed(2)}h`
+														? `Valore attuale: ${toHHMM(currentDayValue(w, correctionDate[i])!)}`
 														: "Giorno non presente — verrà aggiunto"
 												}}
 											</span>
@@ -410,14 +406,10 @@
 													"
 												>
 													{{
-														previewTotal(w, i) !==
-														null
-															? previewTotal(
-																	w,
-																	i,
-																)!.toFixed(2) +
-																"h"
+														previewTotal(w, i) !== null
+															? toHHMM(previewTotal(w, i)!)
 															: "—"
+													}}
 													}}
 												</strong>
 											</span>
@@ -485,12 +477,7 @@
 														correctionNewTotal[
 															i
 														] !== null
-															? Number(
-																	correctionNewTotal[
-																		i
-																	],
-																).toFixed(2) +
-																"h"
+															? toHHMM(Number(correctionNewTotal[i]))
 															: "—"
 													}}
 												</strong>
@@ -577,7 +564,7 @@
 						<tr>
 							<th>Data</th>
 							<th>Dipendente</th>
-							<th>Ore (decimale)</th>
+							<th>Ore</th>
 							<th>File sorgente</th>
 						</tr>
 					</thead>
@@ -585,12 +572,7 @@
 						<tr v-for="(row, i) in filteredRows" :key="i">
 							<td class="td-mono">{{ row.date }}</td>
 							<td style="font-weight: 500">{{ row.employee }}</td>
-							<td class="td-hours">
-								{{
-									row.hours % 1 === 0
-										? row.hours.toFixed(0)
-										: row.hours.toFixed(2)
-								}}
+							<td class="td-hours">{{ toHHMM(row.hours) }}</td>
 							</td>
 							<td
 								class="text-secondary text-sm"
@@ -626,10 +608,10 @@
 								<td style="font-weight: 500">{{ s.name }}</td>
 								<td class="td-mono">{{ s.days }}</td>
 								<td class="td-hours">
-									{{ s.hours.toFixed(2) }}
+									{{ toHHMM(s.hours) }}
 								</td>
 								<td class="td-mono text-secondary">
-									{{ (s.hours / s.days).toFixed(2) }}
+									{{ toHHMM(s.hours / s.days) }}
 								</td>
 							</tr>
 						</tbody>
@@ -641,6 +623,7 @@
 </template>
 
 <script setup lang="ts">
+import { toHHMM } from '~/utils/format'
 definePageMeta({ layout: "app" });
 
 import type {

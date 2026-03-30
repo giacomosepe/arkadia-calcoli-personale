@@ -20,70 +20,80 @@
 						<span class="card-title">Configurazione</span>
 					</div>
 					<div class="card-body stack stack-md">
+
+						<!-- Step 1: Select company -->
 						<div class="step-row">
 							<span class="step-badge">1</span>
 							<div class="form-group" style="flex: 1">
 								<label class="form-label">
+									Azienda
+									<span style="color: var(--c-danger)">*</span>
+								</label>
+								<select
+									:value="selectedCompanyId"
+									class="form-select"
+									@change="onCompanySelect(($event.target as HTMLSelectElement).value)"
+								>
+									<option value="" disabled>Seleziona azienda…</option>
+									<option v-for="c in companies" :key="c.id" :value="c.id">
+										{{ c.name }}
+									</option>
+								</select>
+								<p class="text-sm text-secondary mt-sm">
+									I campi ore vengono compilati automaticamente dalla configurazione.
+								</p>
+							</div>
+						</div>
+
+						<!-- Step 2 + 3: Auto-filled fields, still editable as override -->
+						<div class="step-row">
+							<span class="step-badge">2</span>
+							<div class="form-group" style="flex: 1">
+								<label class="form-label">
 									Colonna ore giornaliere nel PDF
-									<span style="color: var(--c-danger)"
-										>*</span
-									>
+									<span style="color: var(--c-danger)">*</span>
 								</label>
 								<input
 									v-model="dailyColumn"
 									class="form-input"
-									:style="
-										dailyColumn.trim() === '' &&
-										showValidation
-											? 'border-color: var(--c-danger)'
-											: ''
-									"
-									placeholder="es. H Ord"
+									:style="dailyColumn.trim() === '' && showValidation ? 'border-color: var(--c-danger)' : ''"
+									placeholder="es. ORDINARIE"
 									spellcheck="false"
 								/>
 								<p class="text-sm text-secondary mt-sm">
-									Esattamente come appare nell'intestazione
-									della tabella GIORNO del PDF.
+									Compilato automaticamente. Modifica solo se il PDF usa un'intestazione diversa.
 								</p>
 							</div>
 						</div>
 
 						<div class="step-row">
-							<span class="step-badge">2</span>
+							<span class="step-badge">3</span>
 							<div class="form-group" style="flex: 1">
 								<label class="form-label">
-									Etichetta nel sommario totale mensile del
-									PDF
-									<span style="color: var(--c-danger)"
-										>*</span
-									>
+									Etichetta totale mensile nel PDF
+									<span style="color: var(--c-danger)">*</span>
 								</label>
 								<input
 									v-model="summaryLabel"
 									class="form-input"
-									:style="
-										summaryLabel.trim() === '' &&
-										showValidation
-											? 'border-color: var(--c-danger)'
-											: ''
-									"
+									:style="summaryLabel.trim() === '' && showValidation ? 'border-color: var(--c-danger)' : ''"
 									placeholder="es. ORE ORDINARIE"
 									spellcheck="false"
 								/>
 								<p class="text-sm text-secondary mt-sm">
-									Come appare nella tabella di sommario nel
-									PDF.
+									Compilato automaticamente. Modifica solo se necessario.
 								</p>
 							</div>
 						</div>
+
 					</div>
 				</div>
 
-				<!-- RIGHT — Carica i PDF: step 3 -->
+				<!-- RIGHT — Carica i PDF: step 4 -->
 				<div class="card">
 					<div class="card-header">
 						<span class="card-title">Carica i PDF</span>
-						<span class="step-badge">3</span>
+						<span class="step-badge">4</span>
 					</div>
 					<div class="card-body stack stack-md">
 						<div
@@ -618,12 +628,24 @@
 <script setup lang="ts">
 definePageMeta({ layout: "app" });
 
-import type { ExtractionResult } from "~/types";
+import type { ExtractionResult, CompanyConfig } from "~/types";
 
 const files = ref<File[]>([]);
 const isDragging = ref(false);
 const dailyColumn = ref("");
 const summaryLabel = ref("");
+const selectedCompanyId = ref("");
+
+const { data: companies } = await useFetch<CompanyConfig[]>('/api/companies');
+
+function onCompanySelect(id: string) {
+  selectedCompanyId.value = id;
+  const company = companies.value?.find((c) => c.id === id);
+  if (company) {
+    dailyColumn.value = company.dailyColumn;
+    summaryLabel.value = company.summaryLabel;
+  }
+}
 const isProcessing = ref(false);
 const statusMessage = ref("");
 const statusType = ref<"processing" | "success" | "error" | "warning">(
@@ -639,6 +661,7 @@ const { data: apiConfig } = await useFetch("/api/check-config");
 const canRun = computed(
 	() =>
 		files.value.length > 0 &&
+		selectedCompanyId.value !== "" &&
 		dailyColumn.value.trim() !== "" &&
 		summaryLabel.value.trim() !== "",
 );
@@ -694,7 +717,10 @@ async function confirmExtraction() {
 	statusMessage.value = `Invio di ${files.value.length} PDF a Claude…`;
 
 	try {
+		const company = companies.value?.find((c) => c.id === selectedCompanyId.value);
 		const formData = new FormData();
+		formData.append("vendorName", company?.vendorName ?? "Unknown");
+		formData.append("nameLocation", company?.nameLocation ?? "Find the employee full name in the header area of the page.");
 		formData.append("dailyColumn", dailyColumn.value);
 		formData.append("summaryLabel", summaryLabel.value);
 		files.value.forEach((f) => formData.append("files", f));

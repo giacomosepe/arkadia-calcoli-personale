@@ -2,8 +2,12 @@
   {
     "id": "adenes",
     "name": "Adenes Italia SRL",
+    "vendorName": "Zucchetti",
+    "nameLocation": "Find the employee name in the header section of the page, under the label 'COGNOME NOME e INDIRIZZO' or similar. The name appears as Firstname Lastname (e.g. 'ALBANESE ANDREA') — apply surname-first rule from system prompt.",
     "hoursFieldLabel": "ORE ORDINARIE",
     "hoursFieldCode": "ORD",
+    "dailyColumn": "ORDINARIE",
+    "summaryLabel": "ORE ORDINARIE",
     "outputTemplatePath": "/template.xlsx"
   }
 ]
