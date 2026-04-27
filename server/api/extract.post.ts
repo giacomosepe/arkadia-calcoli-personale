@@ -4,20 +4,23 @@ import type { ExtractionResult, ExtractionWarning } from "~/types";
 
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig(event);
-  const apiKey = config.anthropicApiKey;
-
-  if (!apiKey) {
-    throw createError({
-      statusCode: 500,
-      statusMessage: "ANTHROPIC_API_KEY non configurata",
-    });
-  }
 
   const formData = await readMultipartFormData(event);
   if (!formData) {
     throw createError({
       statusCode: 400,
       statusMessage: "Nessun dato ricevuto",
+    });
+  }
+
+  const userApiKeyField = formData.find((f) => f.name === "apiKey");
+  const userApiKey = userApiKeyField?.data?.toString().trim() || "";
+  const anthropicKey = userApiKey || config.anthropicApiKey;
+
+  if (!anthropicKey) {
+    throw createError({
+      statusCode: 500,
+      statusMessage: "ANTHROPIC_API_KEY non configurata e nessuna chiave fornita",
     });
   }
 
@@ -78,7 +81,7 @@ export default defineEventHandler(async (event) => {
         dailyColumn,
         summaryLabel,
         `${filename} (pagina ${i + 1})`,
-        apiKey,
+        anthropicKey,
       );
 
       if (result.error) {

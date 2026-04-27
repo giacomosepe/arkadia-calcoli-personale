@@ -320,6 +320,38 @@
 			<!-- Full-width launch area: status left, button+API right -->
 			<div class="launch-area">
 				<div class="launch-status">
+					<div class="api-key-field">
+						<div class="api-key-input-wrap">
+							<input
+								v-model="apiKey"
+								:type="showApiKeyText ? 'text' : 'password'"
+								class="form-input"
+								style="padding-right: 36px; font-family: var(--font-mono); font-size: 0.8125rem"
+								placeholder="sk-ant-…"
+								spellcheck="false"
+								autocomplete="off"
+							/>
+							<button
+								type="button"
+								class="api-key-toggle"
+								@click="showApiKeyText = !showApiKeyText"
+								:aria-label="showApiKeyText ? 'Nascondi chiave' : 'Mostra chiave'"
+							>
+								<svg v-if="!showApiKeyText" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+									<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+									<circle cx="12" cy="12" r="3"/>
+								</svg>
+								<svg v-else width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+									<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
+									<path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
+									<line x1="1" y1="1" x2="23" y2="23"/>
+								</svg>
+							</button>
+						</div>
+						<p style="font-size: 0.7rem; color: var(--c-text-secondary); margin-top: 4px; line-height: 1.4">
+							Chiave API Anthropic — opzionale, usa la chiave di default se vuota
+						</p>
+					</div>
 					<Transition name="fade">
 						<p
 							v-if="showValidation && !canRun"
@@ -371,7 +403,6 @@
 				<div class="launch-action">
 					<button
 						class="btn btn-primary"
-						style="width: 100%; justify-content: center"
 						:disabled="isProcessing"
 						@click="handleRunClick"
 					>
@@ -675,6 +706,21 @@ const errors = ref<string[]>([]);
 const fileInput = ref<HTMLInputElement | null>(null);
 const showModal = ref(false);
 const showValidation = ref(false);
+const apiKey = ref("");
+const showApiKeyText = ref(false);
+
+onMounted(() => {
+	const saved = localStorage.getItem("anthropic_api_key");
+	if (saved) apiKey.value = saved;
+});
+
+watch(apiKey, (val) => {
+	if (val.trim()) {
+		localStorage.setItem("anthropic_api_key", val.trim());
+	} else {
+		localStorage.removeItem("anthropic_api_key");
+	}
+});
 
 const { data: apiConfig } = await useFetch("/api/check-config");
 
@@ -742,6 +788,7 @@ async function confirmExtraction() {
 		formData.append("nameOrder", nameOrder.value);
 		formData.append("dailyColumn", dailyColumn.value);
 		formData.append("summaryLabel", summaryLabel.value);
+		if (apiKey.value.trim()) formData.append("apiKey", apiKey.value.trim());
 		files.value.forEach((f) => formData.append("files", f));
 
 		statusMessage.value = "Claude sta analizzando i documenti…";
@@ -828,13 +875,13 @@ async function confirmExtraction() {
 
 /* Full-width launch area: status left, button+API right */
 .launch-area {
-	display: flex;
-	align-items: flex-end;
-	gap: 20px;
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 16px;
+	align-items: center;
 }
 
 .launch-status {
-	flex: 1;
 	display: flex;
 	flex-direction: column;
 	gap: 10px;
@@ -842,11 +889,10 @@ async function confirmExtraction() {
 }
 
 .launch-action {
-	width: 240px;
-	flex-shrink: 0;
 	display: flex;
 	flex-direction: column;
 	gap: 8px;
+	justify-self: end;
 }
 
 /* API status row sits directly under the button */
@@ -937,6 +983,35 @@ async function confirmExtraction() {
 	font-family: var(--font-mono);
 }
 
+/* API key field */
+.api-key-field {
+	display: flex;
+	flex-direction: column;
+}
+
+.api-key-input-wrap {
+	position: relative;
+}
+
+.api-key-toggle {
+	position: absolute;
+	right: 8px;
+	top: 50%;
+	transform: translateY(-50%);
+	background: none;
+	border: none;
+	cursor: pointer;
+	padding: 2px;
+	color: var(--c-text-secondary);
+	display: flex;
+	align-items: center;
+	line-height: 0;
+}
+
+.api-key-toggle:hover {
+	color: var(--c-text-primary);
+}
+
 /* Responsive — Tailwind md breakpoint equivalent */
 @media (max-width: 768px) {
 	.inner-grid {
@@ -944,12 +1019,7 @@ async function confirmExtraction() {
 	}
 
 	.launch-area {
-		flex-direction: column;
-		align-items: stretch;
-	}
-
-	.launch-action {
-		width: 100%;
+		grid-template-columns: 1fr;
 	}
 
 	.db-card {
