@@ -329,7 +329,7 @@
 								style="padding-right: 36px; font-family: var(--font-mono); font-size: 0.8125rem"
 								placeholder="sk-ant-…"
 								spellcheck="false"
-								autocomplete="off"
+								autocomplete="new-password"
 							/>
 							<button
 								type="button"
