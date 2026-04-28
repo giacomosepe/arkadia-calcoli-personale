@@ -8,6 +8,13 @@ export default defineNuxtConfig({
     experimental: {
       wasm: true,
     },
+    externals: {
+      inline: [],
+      external: ["pdfjs-dist"],
+    },
+    rollupConfig: {
+      external: ["pdfjs-dist"],
+    },
   },
 
   runtimeConfig: {

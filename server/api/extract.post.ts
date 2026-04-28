@@ -7,14 +7,10 @@ export default defineEventHandler(async (event) => {
 
   const formData = await readMultipartFormData(event);
   if (!formData) {
-    throw createError({
-      statusCode: 400,
-      statusMessage: "Nessun dato ricevuto",
-    });
+    throw createError({ statusCode: 400, statusMessage: "Nessun dato ricevuto" });
   }
 
-  const userApiKeyField = formData.find((f) => f.name === "apiKey");
-  const userApiKey = userApiKeyField?.data?.toString().trim() || "";
+  const userApiKey = formData.find((f) => f.name === "apiKey")?.data?.toString().trim() || "";
   const anthropicKey = userApiKey || config.anthropicApiKey;
 
   if (!anthropicKey) {
@@ -24,22 +20,14 @@ export default defineEventHandler(async (event) => {
     });
   }
 
-  const vendorNameField = formData.find((f) => f.name === "vendorName");
-  const nameOrderField = formData.find((f) => f.name === "nameOrder");
-  const dailyColumnField = formData.find((f) => f.name === "dailyColumn");
-  const summaryLabelField = formData.find((f) => f.name === "summaryLabel");
+  const vendorName    = formData.find((f) => f.name === "vendorName")?.data?.toString().trim()    || "Italian LUL payroll document";
+  const nameOrder     = (formData.find((f) => f.name === "nameOrder")?.data?.toString().trim()    || "surname_first") as "surname_first" | "name_first";
+  const dailyColumn   = formData.find((f) => f.name === "dailyColumn")?.data?.toString().trim()   || "";
+  const extraColumn   = formData.find((f) => f.name === "extraColumn")?.data?.toString().trim()   || "";
+  const summaryLabel  = formData.find((f) => f.name === "summaryLabel")?.data?.toString().trim()  || "";
 
-  const vendorName =
-    vendorNameField?.data?.toString().trim() || "Italian LUL payroll document";
-  const nameOrder = (nameOrderField?.data?.toString().trim() || "surname_first") as "surname_first" | "name_first";
-  const dailyColumn = dailyColumnField?.data?.toString().trim() || "";
-  const summaryLabel = summaryLabelField?.data?.toString().trim() || "";
-
-  if (!dailyColumn || !summaryLabel) {
-    throw createError({
-      statusCode: 400,
-      statusMessage: "Colonna ore e etichetta VOCI sono obbligatorie",
-    });
+  if (!dailyColumn) {
+    throw createError({ statusCode: 400, statusMessage: "Colonna ore è obbligatoria" });
   }
 
   const pdfFiles = formData.filter(
@@ -47,22 +35,16 @@ export default defineEventHandler(async (event) => {
   );
 
   if (pdfFiles.length === 0) {
-    throw createError({
-      statusCode: 400,
-      statusMessage: "Nessun file PDF trovato",
-    });
+    throw createError({ statusCode: 400, statusMessage: "Nessun file PDF trovato" });
   }
 
   const allRows: ExtractionResult["rows"] = [];
   const errors: string[] = [];
-
-  // Track declared totals per employee+month for verification
   const declaredTotals = new Map<string, number>();
 
   for (const file of pdfFiles) {
     const filename = file.filename ?? "unknown.pdf";
 
-    // Split PDF into individual pages
     const pdfDoc = await PDFDocument.load(file.data);
     const pageCount = pdfDoc.getPageCount();
     console.log(`${filename}: ${pageCount} pages`);
@@ -79,6 +61,7 @@ export default defineEventHandler(async (event) => {
         vendorName,
         nameOrder,
         dailyColumn,
+        extraColumn,
         summaryLabel,
         `${filename} (pagina ${i + 1})`,
         anthropicKey,
@@ -88,12 +71,9 @@ export default defineEventHandler(async (event) => {
         errors.push(result.error);
       } else {
         allRows.push(...result.rows);
-
-        // Store declared total for this employee+month
         if (result.rows.length > 0 && result.declaredTotal !== undefined) {
           const r = result.rows[0];
-          const key = `${r.employee}__${r.month}__${r.year}`;
-          declaredTotals.set(key, result.declaredTotal);
+          declaredTotals.set(`${r.employee}__${r.month}__${r.year}`, result.declaredTotal);
         }
       }
 
@@ -101,7 +81,6 @@ export default defineEventHandler(async (event) => {
     }
   }
 
-  // Sort rows
   allRows.sort((a, b) => {
     const name = a.employee.localeCompare(b.employee);
     if (name !== 0) return name;
@@ -110,51 +89,26 @@ export default defineEventHandler(async (event) => {
     return a.day - b.day;
   });
 
-  // ── Verification: compare declared vs actual totals ──────────────
+  // ── Verification ────────────────────────────────────────────────
   const warnings: ExtractionWarning[] = [];
-
-  // Group actual hours by employee+month
-  const actualTotals = new Map<
-    string,
-    { hours: number; employee: string; month: number; year: number }
-  >();
+  const actualTotals = new Map<string, { hours: number; employee: string; month: number; year: number }>();
 
   for (const row of allRows) {
     const key = `${row.employee}__${row.month}__${row.year}`;
     if (!actualTotals.has(key)) {
-      actualTotals.set(key, {
-        hours: 0,
-        employee: row.employee,
-        month: row.month,
-        year: row.year,
-      });
+      actualTotals.set(key, { hours: 0, employee: row.employee, month: row.month, year: row.year });
     }
     actualTotals.get(key)!.hours += row.hours;
   }
 
-  const monthNames = [
-    "",
-    "Gennaio",
-    "Febbraio",
-    "Marzo",
-    "Aprile",
-    "Maggio",
-    "Giugno",
-    "Luglio",
-    "Agosto",
-    "Settembre",
-    "Ottobre",
-    "Novembre",
-    "Dicembre",
-  ];
+  const monthNames = ["", "Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno",
+    "Luglio", "Agosto", "Settembre", "Ottobre", "Novembre", "Dicembre"];
 
   for (const [key, actual] of actualTotals) {
     const declared = declaredTotals.get(key);
     if (declared === undefined || declared === 0) continue;
-
     const actualRounded = Math.round(actual.hours * 100) / 100;
     const diff = Math.abs(declared - actualRounded);
-
     if (diff > 0.1) {
       warnings.push({
         employee: actual.employee,
@@ -168,16 +122,11 @@ export default defineEventHandler(async (event) => {
     }
   }
 
-  const uniqueEmployees = new Set(allRows.map((r) => r.employee));
-  const uniqueMonths = new Set(allRows.map((r) => `${r.year}-${r.month}`));
-
-  const result: ExtractionResult = {
+  return {
     rows: allRows,
     errors,
     warnings,
-    totalEmployees: uniqueEmployees.size,
-    totalMonths: uniqueMonths.size,
-  };
-
-  return result;
+    totalEmployees: new Set(allRows.map((r) => r.employee)).size,
+    totalMonths: new Set(allRows.map((r) => `${r.year}-${r.month}`)).size,
+  } satisfies ExtractionResult;
 });

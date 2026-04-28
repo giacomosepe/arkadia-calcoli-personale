@@ -1,84 +1,62 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { ExtractedRow } from "~/types";
 
-// ─── System prompt ─────────────────────────────────────────────────────────────
-// Universal rules true for ALL LUL documents regardless of vendor or software.
-// Never contains vendor-specific column names or layout descriptions.
-// Eligible for Anthropic prompt caching — never changes between calls.
 const SYSTEM_PROMPT = `You are a data extraction engine for Italian LUL (Libro Unico del Lavoro) payroll documents.
 Each page contains exactly one employee's attendance record for one calendar month.
-You will extract every row of the appropriate daily hours column as indicated in the Locate information instructions .
 Return ONLY a valid JSON object. No explanation, no markdown, no prose.
 
-Output format (always exactly this structure):
-{"employee":"ROSSI MARIO","month":3,"year":2024,"declared_total":168.0,"days":[{"day":1,"hours":8.0}]}
+OUTPUT FORMAT
+{"employee":"ROSSI MARIO","month":3,"year":2024,"declared_total":168.0,"days":[{"day":1,"hours":8.0,"extra_hours":0.0}]}
 
-Employee name rules:
-- The instructions for this document will tell you where to find the name
-- Always output as: SURNAME GIVENNAME — all caps, surname first, single space, no comma
-- If the name appears as "Firstname Lastname" reverse it: "Andrea Albanese" → "ALBANESE ANDREA"
-- If already "LASTNAME FIRSTNAME" keep it: "ALBANESE ANDREA" stays "ALBANESE ANDREA"
-- Multi-word names: "BIANCHI ANNA MARIA" keep last name in front, if you can't tell the last name, then it stays as-is
+RULES
+1. EMPLOYEE NAME: output as SURNAME GIVENNAME, all caps, single space, no comma.
+2. DAY COLUMN: find the column with day numbers (values 1–31). Days may be prefixed with S (Sabato) or D (Domenica) — e.g. "S5", "D12". Extract only the number.
+3. ORDINARY HOURS: find the column labelled as instructed below. Valid values are numbers ≥ 0 and ≤ 8. Read only the value in that exact column. If the cell is empty, hours = 0.
+   ABSENCE OVERRIDE: if the ALTRE column on the same row contains any letter code (e.g. I, A, P, R or any non-numeric value), the employee was absent — set hours = 0 for that day regardless of what the ORD column shows.
+4. EXTRA HOURS: find the extra hours column as instructed below. Same rules as ordinary hours. If not configured or cell is empty → 0.
+5. HOURS FORMAT: Italian decimal comma means hours and minutes — 8,00→8.0 and 6,45→6.75 (45 minutes, NOT 6.45). Colon format: 7:30→7.5. Plain integer: 168→168.0.
+6. DECLARED TOTAL: find the label as instructed below. The value may appear either:
+   a) Next to the label in a summary section at the bottom of the page, OR
+   b) In the document header area above the daily table, as a number aligned under the label column (common in Data Services layout — e.g. the value "96,00" appears on the first data row in the ORE LAVORATE column position).
+   In case (b) the value is on the same row as day 1 or in the header row itself — do not confuse it with day 1's ordinary hours.
+   If absent → "not found".
+7. Omit days where both hours and extra_hours are 0.`;
 
-Hours conversion (H:MM → decimal) — applies to ALL values including declared_total:
-PDF will always display hours, they will be formatted as H:MM format (e.g. "8:00", "7:30", "4:45", "0:30", "0:00", "172:30") or in other formats (e.g. "168.0" or "168" or "8.30" or "8,30").
-If a value has no colon and looks like a plain number (168 or 168.0) treat it as hours.
-
-Once you read the hours, whatever the format is, you will convert them to decimal format: 8:00→8.0  7:30→7.5  4:45→4.75  0:30→0.5  0:00→0.0  172:30→172.5
-
-Zero/empty rules:
-- Cell empty, contains only "-" or "--", or contains a letter code or have a code have value = zero → hours: 0, omit from days array
-- Omit ALL days where hours = 0 (weekends, holidays, absences)
-- Monthly total not found or unreadable → declared_total: "not found"`;
-
-// ─── User prompt ────────────────────────────────────────────────────────────────
-// Built from company config. Describes this specific vendor's document layout.
-// Variables:
-//   vendorName       → human name of the payroll software/vendor (e.g. "Zucchetti")
-//   nameOrder        → 'surname_first' | 'name_first' — order of the name as it appears in the PDF
-//   dailyHoursColumn → exact column header for daily worked hours
-//   totalHoursLabel  → exact label for the monthly total row in the summary section
-function buildNameInstruction(
-  nameOrder: "surname_first" | "name_first",
-): string {
+function buildNameInstruction(nameOrder: "surname_first" | "name_first"): string {
   if (nameOrder === "surname_first") {
-    return `Find the employee full name in the header area of the page.
-The name is written SURNAME FIRSTNAME (e.g. "ROSSI MARIO", "BELLINI MATTIA"). It is already in the correct order — output it as-is in all caps.`;
-  } else {
-    return `Find the employee full name in the header area of the page
-The name is written FIRSTNAME SURNAME (e.g. "MARIO ROSSI", "ANDREA ALBANESE"). You MUST reverse it to SURNAME FIRSTNAME before outputting (e.g. "MARIO ROSSI" → "ROSSI MARIO"). The output must be in all caps.`;
+    return `The name appears as SURNAME FIRSTNAME (e.g. "ROSSI MARIO"). Output as-is in all caps.`;
   }
+  return `The name appears as FIRSTNAME SURNAME (e.g. "MARIO ROSSI"). Reverse to SURNAME FIRSTNAME (e.g. "ROSSI MARIO"). Output in all caps.`;
 }
 
-function buildUserPrompt(
+function buildPrompt(
   vendorName: string,
   nameOrder: "surname_first" | "name_first",
   dailyHoursColumn: string,
+  extraHoursColumn: string,
   totalHoursLabel: string,
 ): string {
-  return `This LUL page is from: ${vendorName}
+  const extraInstruction = extraHoursColumn
+    ? `EXTRA HOURS COLUMN: "${extraHoursColumn}"`
+    : `EXTRA HOURS COLUMN: not configured — use 0 for all days.`;
 
-Locate information instructions:
-Employee name: ${buildNameInstruction(nameOrder)}
+  const totalInstruction = totalHoursLabel
+    ? `DECLARED TOTAL LABEL: "${totalHoursLabel}"`
+    : `DECLARED TOTAL LABEL: not configured — set declared_total: "not found".`;
 
-Daily hours — extract ONLY from the "${dailyHoursColumn}" column:
-- This is the numeric sub-column inside the section of the attendance table. Only take the value from the column identified by "${dailyHoursColumn}" label
-- A valid value is a BARE NUMBER only (e.g. "8,00" or "6:45", or 8.30) with NO letter code before or after it on the same cell
-- If a row shows a letter code before number (e.g. "MA 8,00", "FE 8,00", "RL 2,00", "ST 0,30") that is a different entry — IGNORE IT entirely, even if it appears in a position that looks like the "${dailyHoursColumn}" column
-- Do NOT read any other column that is not the "${dailyHoursColumn}" column
+  return `Document vendor: ${vendorName}
 
-
-Monthly total:
-- Find the row or cell labelled "${totalHoursLabel}" in the summary/totals section typically at the bottom of the page
-- Convert to decimal using the rules in the system prompt
-
-Return ONLY the JSON. Nothing else.`;
+EMPLOYEE NAME: ${buildNameInstruction(nameOrder)}
+ORDINARY HOURS COLUMN: "${dailyHoursColumn}"
+${extraInstruction}
+${totalInstruction}
+IGNORE THESE COLUMNS ENTIRELY — do not read any values from them: "GIUSTIFICATIVI", "STRAORD."`;
 }
 
-// ─── Types ─────────────────────────────────────────────────────────────────────
 interface ClaudeDay {
   day: number;
   hours: number;
+  extra_hours?: number;
 }
 
 interface ClaudeResponse {
@@ -89,12 +67,12 @@ interface ClaudeResponse {
   days: ClaudeDay[];
 }
 
-// ─── Main extraction function ───────────────────────────────────────────────────
 export async function extractFromPdf(
-  pdfBase64: string,
+  base64Pdf: string,
   vendorName: string,
   nameOrder: "surname_first" | "name_first",
   dailyHoursColumn: string,
+  extraHoursColumn: string,
   totalHoursLabel: string,
   sourceFile: string,
   apiKey: string,
@@ -117,17 +95,12 @@ export async function extractFromPdf(
                 source: {
                   type: "base64",
                   media_type: "application/pdf",
-                  data: pdfBase64,
+                  data: base64Pdf,
                 },
               },
               {
                 type: "text",
-                text: buildUserPrompt(
-                  vendorName,
-                  nameOrder,
-                  dailyHoursColumn,
-                  totalHoursLabel,
-                ),
+                text: buildPrompt(vendorName, nameOrder, dailyHoursColumn, extraHoursColumn, totalHoursLabel),
               },
             ],
           },
@@ -145,6 +118,8 @@ export async function extractFromPdf(
         .replace(/\n?```$/m, "")
         .trim();
 
+      console.log(`[claude] ${sourceFile}: ${clean.substring(0, 200)}`);
+
       const parsed: ClaudeResponse = JSON.parse(clean);
 
       if (
@@ -153,10 +128,7 @@ export async function extractFromPdf(
         typeof parsed.year !== "number" ||
         !Array.isArray(parsed.days)
       ) {
-        return {
-          rows: [],
-          error: `Risposta struttura non valida per ${sourceFile}`,
-        };
+        return { rows: [], error: `Risposta struttura non valida per ${sourceFile}` };
       }
 
       const declaredTotal =
@@ -166,6 +138,7 @@ export async function extractFromPdf(
 
       const rows: ExtractedRow[] = parsed.days
         .filter((d) => typeof d.day === "number" && typeof d.hours === "number")
+        .filter((d) => (d.hours ?? 0) > 0 || (d.extra_hours ?? 0) > 0)
         .map((d: ClaudeDay) => {
           const dd = String(d.day).padStart(2, "0");
           const mm = String(parsed.month).padStart(2, "0");
@@ -173,6 +146,7 @@ export async function extractFromPdf(
             date: `${dd}/${mm}/${parsed.year}`,
             employee: parsed.employee.trim(),
             hours: Math.round((d.hours ?? 0) * 10000) / 10000,
+            extraHours: Math.round((d.extra_hours ?? 0) * 10000) / 10000,
             sourceFile,
             month: parsed.month,
             year: parsed.year,
@@ -182,25 +156,14 @@ export async function extractFromPdf(
 
       return { rows, declaredTotal };
     } catch (err) {
-      const isRateLimit =
-        err instanceof Error &&
-        (err.message.includes("429") || err.message.includes("rate_limit"));
-
-      // Transient errors (rate limit, 529 overload) get exponential backoff + jitter.
-      // attempt 1 → ~30s, attempt 2 → ~60s, attempt 3 → ~90s — then gives up.
       const isTransient =
-        isRateLimit ||
-        (err instanceof Error &&
-          (err.message.includes("529") || err.message.includes("overloaded")));
+        err instanceof Error &&
+        (err.message.includes("429") || err.message.includes("rate_limit") ||
+         err.message.includes("529") || err.message.includes("overloaded"));
 
       if (isTransient && attempt < retries) {
-        const baseSeconds = attempt * 30;
-        const jitter = Math.floor(Math.random() * 10);
-        const waitSeconds = baseSeconds + jitter;
-        console.warn(
-          `[${sourceFile}] Transient error (attempt ${attempt}/${retries}), retrying in ${waitSeconds}s…`,
-        );
-        await new Promise((resolve) => setTimeout(resolve, waitSeconds * 1000));
+        const wait = (attempt * 30 + Math.floor(Math.random() * 10)) * 1000;
+        await new Promise((resolve) => setTimeout(resolve, wait));
         continue;
       }
 
@@ -209,8 +172,5 @@ export async function extractFromPdf(
     }
   }
 
-  return {
-    rows: [],
-    error: `Errore su ${sourceFile}: tutti i tentativi falliti`,
-  };
+  return { rows: [], error: `Errore su ${sourceFile}: tutti i tentativi falliti` };
 }

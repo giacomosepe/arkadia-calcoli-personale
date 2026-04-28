@@ -66,7 +66,8 @@ export default defineEventHandler(async (event) => {
   wsAll.columns = [
     { header: "Data", key: "date", width: 14 },
     { header: "Risorsa", key: "employee", width: 32 },
-    { header: "Ore", key: "hours", width: 10 },
+    { header: "Ore Ord.", key: "hours", width: 10 },
+    { header: "Ore Str.", key: "extraHours", width: 10 },
     { header: "Giorno", key: "day", width: 10 },
     { header: "Mese", key: "month", width: 10 },
   ];
@@ -78,12 +79,14 @@ export default defineEventHandler(async (event) => {
       date: row.date,
       employee: row.employee,
       hours: row.hours,
+      extraHours: row.extraHours ?? 0,
       day: row.day,
       month: row.month,
     });
     dataRow.font = { name: "Arial", size: 10 };
     dataRow.getCell("date").alignment = { horizontal: "center" };
     dataRow.getCell("hours").alignment = { horizontal: "center" };
+    dataRow.getCell("extraHours").alignment = { horizontal: "center" };
     dataRow.getCell("day").alignment = { horizontal: "center" };
     dataRow.getCell("month").alignment = { horizontal: "center" };
   }

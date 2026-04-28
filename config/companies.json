@@ -9,5 +9,15 @@
     "dailyColumn": "ORDINARIE",
     "summaryLabel": "ORE ORDINARIE",
     "outputTemplatePath": "/template.xlsx"
+  },
+  {
+    "id": "minigrip-ferrari",
+    "name": "Minigrip Grip-Pak SRL",
+    "vendorName": "Data Services S.R.L.",
+    "nameOrder": "surname_first",
+    "dailyColumn": "ORD.",
+    "straorColumn": "STRAOR.",
+    "summaryLabel": "ORE LAVORATE",
+    "outputTemplatePath": "/template.xlsx"
   }
 ]

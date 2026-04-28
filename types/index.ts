@@ -2,11 +2,11 @@ export interface ExtractedRow {
   date: string;
   employee: string;
   hours: number;
+  extraHours: number;
   sourceFile: string;
   month: number;
   year: number;
   day: number;
-  declaredTotal?: number;
 }
 
 export interface ExtractionWarning {

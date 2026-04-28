@@ -43,25 +43,50 @@
 						<div class="step-row">
 							<span class="step-badge">2</span>
 							<div class="form-group" style="flex: 1">
-								<label class="form-label">
-									Etichetta totale mensile nel PDF
-									<span style="color: var(--c-danger)">*</span>
-								</label>
+								<label class="form-label">Colonna ore straordinarie nel PDF</label>
 								<input
-									v-model="summaryLabel"
+									v-model="extraColumn"
 									class="form-input"
-									:style="summaryLabel.trim() === '' && showValidation ? 'border-color: var(--c-danger)' : ''"
-									placeholder="es. ORE ORDINARIE"
+									placeholder="es. STRAORDINARIE"
 									spellcheck="false"
 								/>
-								<p class="text-sm text-secondary mt-sm">
-									Come appare nella tabella di sommario nel PDF.
-								</p>
+								<p class="text-sm text-secondary mt-sm">Opzionale — lascia vuoto se non presente.</p>
 							</div>
 						</div>
 
 						<div class="step-row">
-							<span class="step-badge">3</span>
+						<span class="step-badge">3</span>
+						<div class="form-group" style="flex: 1">
+						<div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px">
+						<label class="form-label" style="margin-bottom: 0">
+						 Etichetta totale mensile nel PDF
+						 </label>
+						 <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 0.8125rem; color: var(--c-text-secondary)">
+						 <input
+						  type="checkbox"
+						  v-model="hasTotalField"
+						  style="accent-color: var(--c-accent)"
+						 />
+						  Presente nel PDF
+						 </label>
+						</div>
+						<input
+						  v-model="summaryLabel"
+						   class="form-input"
+											:disabled="!hasTotalField"
+											:style="!hasTotalField ? 'opacity: 0.4; pointer-events: none' : ''"
+											placeholder="es. ORE ORDINARIE"
+											spellcheck="false"
+										/>
+										<p class="text-sm text-secondary mt-sm">
+											<span v-if="hasTotalField">Come appare nella tabella di sommario nel PDF.</span>
+											<span v-else>Totale assente — la verifica automatica verrà saltata.</span>
+										</p>
+									</div>
+								</div>
+
+						<div class="step-row">
+							<span class="step-badge">4</span>
 							<div class="form-group" style="flex: 1">
 								<label class="form-label">
 									Ordine nome dipendente nel PDF
@@ -624,7 +649,7 @@
 							font-size: 0.75rem;
 							margin-left: 6px;
 							"
-							>{{ summaryLabel }}</code
+							>{{ hasTotalField ? summaryLabel : 'disabilitato' }}</code
 							>
 							</p>
 								<p class="text-sm">
@@ -695,7 +720,9 @@ import type { ExtractionResult } from "~/types";
 const files = ref<File[]>([]);
 const isDragging = ref(false);
 const dailyColumn = ref("");
+const extraColumn = ref("");
 const summaryLabel = ref("");
+const hasTotalField = ref(true);
 const nameOrder = ref<'surname_first' | 'name_first'>('surname_first');
 const isProcessing = ref(false);
 const statusMessage = ref("");
@@ -728,8 +755,8 @@ const canRun = computed(
 	() =>
 		files.value.length > 0 &&
 		dailyColumn.value.trim() !== "" &&
-		summaryLabel.value.trim() !== "" &&
-		nameOrder.value !== "",
+		nameOrder.value !== "" &&
+		(!hasTotalField.value || summaryLabel.value.trim() !== ""),
 );
 
 function handleRunClick() {
@@ -787,7 +814,8 @@ async function confirmExtraction() {
 		formData.append("vendorName", "Italian LUL payroll document");
 		formData.append("nameOrder", nameOrder.value);
 		formData.append("dailyColumn", dailyColumn.value);
-		formData.append("summaryLabel", summaryLabel.value);
+		formData.append("extraColumn", extraColumn.value.trim());
+		formData.append("summaryLabel", hasTotalField.value ? summaryLabel.value : "");
 		if (apiKey.value.trim()) formData.append("apiKey", apiKey.value.trim());
 		files.value.forEach((f) => formData.append("files", f));
 
