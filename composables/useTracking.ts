@@ -9,12 +9,11 @@ type UseTracking = {
 };
 
 export const useTracking = (): UseTracking => {
-	const { $posthog } = useNuxtApp();
-
 	const trackExtractionStarted = (
 		documentId: string,
 		documentName: string,
 	): void => {
+		const { $posthog } = useNuxtApp();
 		$posthog().capture("extraction_started", {
 			document_id: documentId,
 			document_name: documentName,
@@ -27,6 +26,7 @@ export const useTracking = (): UseTracking => {
 		documentName: string,
 		durationMs: number,
 	): void => {
+		const { $posthog } = useNuxtApp();
 		$posthog().capture("extraction_completed", {
 			document_id: documentId,
 			document_name: documentName,
@@ -36,6 +36,7 @@ export const useTracking = (): UseTracking => {
 	};
 
 	const trackResultExported = (documentId: string): void => {
+		const { $posthog } = useNuxtApp();
 		$posthog().capture("result_exported", {
 			document_id: documentId,
 			export_format: "excel",
