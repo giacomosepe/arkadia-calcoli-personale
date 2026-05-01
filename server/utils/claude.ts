@@ -1,7 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { ExtractedRow } from "~/types";
 
-const SYSTEM_PROMPT = `You are a data extraction engine for Italian LUL (Libro Unico del Lavoro) payroll documents.
+const SYSTEM_PROMPT = `	You are a data extraction engine for Italian LUL (Libro Unico del Lavoro) payroll documents.
 Each page contains exactly one employee's attendance record for one calendar month.
 Return ONLY a valid JSON object. No explanation, no markdown, no prose.
 
@@ -10,9 +10,9 @@ OUTPUT FORMAT
 
 RULES
 1. EMPLOYEE NAME: output as SURNAME GIVENNAME, all caps, single space, no comma.
-2. DAY COLUMN: find the column with day numbers (values 1–31). Days may be prefixed with S (Sabato) or D (Domenica) — e.g. "S5", "D12". Extract only the number.
+2. DAY COLUMN: find the column with day numbers (values 1–31). Days may be prefixed with S (Sabato) or D (Domenica) — e.g. "S5", "D12". Letters may also be followed by spaces e.g. "S 2", S 14" or "D 30". Still extract only the number and beware not to take the content of the the cell in the next column.
 3. ORDINARY HOURS: find the column labelled as instructed below. Valid values are numbers ≥ 0 and ≤ 8. Read only the value in that exact column. If the cell is empty, hours = 0.
-   ABSENCE OVERRIDE: if the ALTRE column on the same row contains any letter code (e.g. I, A, P, R or any non-numeric value), the employee was absent — set hours = 0 for that day regardless of what the ORD column shows.
+   ABSENCE OVERRIDE: if you detect any column with other labels like ALTRE, ignore them. If on the same row you detect any value in addition to the ORDINARY HOURS column, be it a letter code (e.g. I, A, P, R) or any non-numeric value, ignore it entirely. Be always aware of the risk or cell shifting. The only column we are interesed in reading is the ORDINARY HOURS column avoiding any other value in any other column.
 4. EXTRA HOURS: find the extra hours column as instructed below. Same rules as ordinary hours. If not configured or cell is empty → 0.
 5. HOURS FORMAT: Italian decimal comma means hours and minutes — 8,00→8.0 and 6,45→6.75 (45 minutes, NOT 6.45). Colon format: 7:30→7.5. Plain integer: 168→168.0.
 6. DECLARED TOTAL: find the label as instructed below. The value may appear either:
@@ -22,7 +22,9 @@ RULES
    If absent → "not found".
 7. Omit days where both hours and extra_hours are 0.`;
 
-function buildNameInstruction(nameOrder: "surname_first" | "name_first"): string {
+function buildNameInstruction(
+  nameOrder: "surname_first" | "name_first",
+): string {
   if (nameOrder === "surname_first") {
     return `The name appears as SURNAME FIRSTNAME (e.g. "ROSSI MARIO"). Output as-is in all caps.`;
   }
@@ -100,7 +102,13 @@ export async function extractFromPdf(
               },
               {
                 type: "text",
-                text: buildPrompt(vendorName, nameOrder, dailyHoursColumn, extraHoursColumn, totalHoursLabel),
+                text: buildPrompt(
+                  vendorName,
+                  nameOrder,
+                  dailyHoursColumn,
+                  extraHoursColumn,
+                  totalHoursLabel,
+                ),
               },
             ],
           },
@@ -128,7 +136,10 @@ export async function extractFromPdf(
         typeof parsed.year !== "number" ||
         !Array.isArray(parsed.days)
       ) {
-        return { rows: [], error: `Risposta struttura non valida per ${sourceFile}` };
+        return {
+          rows: [],
+          error: `Risposta struttura non valida per ${sourceFile}`,
+        };
       }
 
       const declaredTotal =
@@ -158,8 +169,10 @@ export async function extractFromPdf(
     } catch (err) {
       const isTransient =
         err instanceof Error &&
-        (err.message.includes("429") || err.message.includes("rate_limit") ||
-         err.message.includes("529") || err.message.includes("overloaded"));
+        (err.message.includes("429") ||
+          err.message.includes("rate_limit") ||
+          err.message.includes("529") ||
+          err.message.includes("overloaded"));
 
       if (isTransient && attempt < retries) {
         const wait = (attempt * 30 + Math.floor(Math.random() * 10)) * 1000;
@@ -172,5 +185,8 @@ export async function extractFromPdf(
     }
   }
 
-  return { rows: [], error: `Errore su ${sourceFile}: tutti i tentativi falliti` };
+  return {
+    rows: [],
+    error: `Errore su ${sourceFile}: tutti i tentativi falliti`,
+  };
 }
