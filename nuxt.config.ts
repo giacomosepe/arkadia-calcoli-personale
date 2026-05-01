@@ -8,13 +8,6 @@ export default defineNuxtConfig({
     experimental: {
       wasm: true,
     },
-    externals: {
-      inline: [],
-      external: ["pdfjs-dist"],
-    },
-    rollupConfig: {
-      external: ["pdfjs-dist"],
-    },
   },
 
   runtimeConfig: {
@@ -22,8 +15,8 @@ export default defineNuxtConfig({
     public: {
       appName: "LUL Extractor",
       clerkPublishableKey: process.env.CLERK_PUBLISHABLE_KEY,
-      posthogKey: process.env.POSTHOG_KEY || '',
-      posthogHost: process.env.POSTHOG_HOST || 'https://eu.i.posthog.com',
+      posthogKey: process.env.POSTHOG_KEY || "",
+      posthogHost: process.env.POSTHOG_HOST || "https://eu.i.posthog.com",
     },
   },
 

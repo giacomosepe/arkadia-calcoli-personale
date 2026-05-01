@@ -10,17 +10,20 @@ OUTPUT FORMAT
 
 RULES
 1. EMPLOYEE NAME: output as SURNAME GIVENNAME, all caps, single space, no comma.
-2. DAY COLUMN: find the column with day numbers (values 1–31). Days may be prefixed with S (Sabato) or D (Domenica) — e.g. "S5", "D12". Letters may also be followed by spaces e.g. "S 2", S 14" or "D 30". Still extract only the number and beware not to take the content of the the cell in the next column.
-3. ORDINARY HOURS: find the column labelled as instructed below. Valid values are numbers ≥ 0 and ≤ 8. Read only the value in that exact column. If the cell is empty, hours = 0.
-   ABSENCE OVERRIDE: if you detect any column with other labels like ALTRE, ignore them. If on the same row you detect any value in addition to the ORDINARY HOURS column, be it a letter code (e.g. I, A, P, R) or any non-numeric value, ignore it entirely. Be always aware of the risk or cell shifting. The only column we are interesed in reading is the ORDINARY HOURS column avoiding any other value in any other column.
+2. DAY COLUMN: find the column with day numbers (values 1–31). It can be labeled "GG", "giorno" or similarly. Days may be prefixed with S (Sabato) or D (Domenica) — e.g. "S5", "D12". Letters may also be followed by spaces e.g. "S 2", S 14" or "D 30". Still extract only the number. When reading the day column, beware of cells shifting into an adjacent column. Cells in the day column always end with a number. No exceptions.
+3. ORDINARY HOURS: find the column labelled as instructed below. Valid values are numbers ≥ 0 and ≤ 8. Read only the value in that exact column. If the cell is empty, hours = 0. Beware not to take the content of the the cell in the next column. Cells may look like they shift column.
+   ABSENCE OVERRIDE:
+   - if you detect any column with other labels like "ALTRE, ignore them.
+   - If on the same row you detect any value in addition to the ORDINARY HOURS column, be it a letter code (e.g. I, A, P, R) or any non-numeric value, ignore it entirely.
+   - Be always aware of the risk or cell shifting: the only column we are interesed in reading is the ORDINARY HOURS column
+   - Avoid adding to the ORDINARY HOURS column any value in any other column.
+Omit days where both hours and extra_hours are 0.;
 4. EXTRA HOURS: find the extra hours column as instructed below. Same rules as ordinary hours. If not configured or cell is empty → 0.
 5. HOURS FORMAT: Italian decimal comma means hours and minutes — 8,00→8.0 and 6,45→6.75 (45 minutes, NOT 6.45). Colon format: 7:30→7.5. Plain integer: 168→168.0.
 6. DECLARED TOTAL: find the label as instructed below. The value may appear either:
    a) Next to the label in a summary section at the bottom of the page, OR
-   b) In the document header area above the daily table, as a number aligned under the label column (common in Data Services layout — e.g. the value "96,00" appears on the first data row in the ORE LAVORATE column position).
-   In case (b) the value is on the same row as day 1 or in the header row itself — do not confuse it with day 1's ordinary hours.
-   If absent → "not found".
-7. Omit days where both hours and extra_hours are 0.`;
+   b) In the document header area above the daily table, as a number aligned under the label or next to it
+   If absent → "not found".`;
 
 function buildNameInstruction(
   nameOrder: "surname_first" | "name_first",
@@ -52,7 +55,7 @@ EMPLOYEE NAME: ${buildNameInstruction(nameOrder)}
 ORDINARY HOURS COLUMN: "${dailyHoursColumn}"
 ${extraInstruction}
 ${totalInstruction}
-IGNORE THESE COLUMNS ENTIRELY — do not read any values from them: "GIUSTIFICATIVI", "STRAORD."`;
+`;
 }
 
 interface ClaudeDay {
