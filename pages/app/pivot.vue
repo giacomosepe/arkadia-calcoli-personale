@@ -391,6 +391,7 @@
 
 <script setup lang="ts">
 import * as ExcelJS from "exceljs";
+import { formatSize } from "~/utils/format";
 
 definePageMeta({
 	layout: "app",
@@ -477,12 +478,6 @@ async function setFile(f: File) {
 	} catch {
 		// preview fails silently — server will validate properly
 	}
-}
-
-function formatSize(b: number) {
-	if (b < 1024) return `${b} B`;
-	if (b < 1024 * 1024) return `${(b / 1024).toFixed(0)} KB`;
-	return `${(b / 1024 / 1024).toFixed(1)} MB`;
 }
 
 async function generatePivot() {

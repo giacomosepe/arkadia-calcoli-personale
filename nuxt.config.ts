@@ -22,6 +22,8 @@ export default defineNuxtConfig({
     public: {
       appName: "LUL Extractor",
       clerkPublishableKey: process.env.CLERK_PUBLISHABLE_KEY,
+      posthogKey: process.env.POSTHOG_KEY || '',
+      posthogHost: process.env.POSTHOG_HOST || 'https://eu.i.posthog.com',
     },
   },
 
