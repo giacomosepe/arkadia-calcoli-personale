@@ -564,157 +564,24 @@
 			</NuxtLink>
 		</div>
 
-		<!-- ── Confirmation Modal ────────────────────────────────────── -->
-		<Transition name="fade">
-			<div
-				v-if="showModal"
-				style="
-					position: fixed;
-					inset: 0;
-					z-index: 200;
-					background: rgba(0, 0, 0, 0.45);
-					display: flex;
-					align-items: center;
-					justify-content: center;
-					padding: 24px;
-				"
-				@click.self="showModal = false"
-			>
-				<div
-					class="card"
-					style="
-						width: 100%;
-						max-width: 480px;
-						box-shadow: var(--shadow-lg);
-					"
-				>
-					<div class="card-header">
-						<span class="card-title">Conferma estrazione</span>
-					</div>
-					<div class="card-body stack stack-md">
-						<div
-							style="
-								background: var(--c-bg);
-								border-radius: var(--radius-md);
-								padding: 14px 16px;
-							"
-						>
-							<p
-								class="text-sm fw-500"
-								style="margin-bottom: 8px"
-							>
-								File da elaborare ({{ files.length }}):
-							</p>
-							<div
-								class="stack stack-sm"
-								style="max-height: 160px; overflow-y: auto"
-							>
-								<p
-									v-for="(file, i) in files"
-									:key="i"
-									class="text-sm text-secondary"
-								>
-									{{ file.name }}
-								</p>
-							</div>
-						</div>
-						<div
-							style="
-								background: var(--c-bg);
-								border-radius: var(--radius-md);
-								padding: 14px 16px;
-							"
-							class="stack stack-sm"
-						>
-							<p class="text-sm">
-								<span class="fw-500">Colonna ore:</span>
-								<code
-									style="
-										background: var(--c-surface);
-										padding: 1px 6px;
-										border-radius: 4px;
-										font-size: 0.75rem;
-										margin-left: 6px;
-									"
-									>{{ dailyColumn }}</code
-								>
-							</p>
-							<p class="text-sm">
-							<span class="fw-500">Etichetta Totale:</span>
-							<code
-							style="
-							background: var(--c-surface);
-							padding: 1px 6px;
-							border-radius: 4px;
-							font-size: 0.75rem;
-							margin-left: 6px;
-							"
-							>{{ hasTotalField ? summaryLabel : 'disabilitato' }}</code
-							>
-							</p>
-								<p class="text-sm">
-									<span class="fw-500">Ordine nome:</span>
-									<code
-										style="
-											background: var(--c-surface);
-											padding: 1px 6px;
-											border-radius: 4px;
-											font-size: 0.75rem;
-											margin-left: 6px;
-										"
-										>{{ nameOrder === 'surname_first' ? 'COGNOME NOME' : 'NOME COGNOME' }}</code
-									>
-								</p>
-						</div>
-						<button
-							class="btn btn-primary btn-lg"
-							style="width: 100%; justify-content: center"
-							:disabled="isProcessing"
-							@click="confirmExtraction"
-						>
-							<span v-if="isProcessing" class="spinner" />
-							<svg
-								v-else
-								width="16"
-								height="16"
-								viewBox="0 0 24 24"
-								fill="none"
-								stroke="currentColor"
-								stroke-width="2"
-							>
-								<polygon points="5 3 19 12 5 21 5 3" />
-							</svg>
-							{{
-								isProcessing
-									? "Elaborazione in corso…"
-									: "Conferma estrazione"
-							}}
-						</button>
-						<p
-							class="text-sm text-secondary"
-							style="text-align: center; line-height: 1.5"
-						>
-							Una volta confermata, l'operazione non può essere
-							annullata.
-						</p>
-						<button
-							v-if="!isProcessing"
-							class="btn btn-ghost"
-							style="width: 100%; justify-content: center"
-							@click="showModal = false"
-						>
-							Annulla
-						</button>
-					</div>
-				</div>
-			</div>
-		</Transition>
+		<ExtractionModal
+			:is-open="showModal"
+			:files="files"
+			:daily-column="dailyColumn"
+			:summary-label="summaryLabel"
+			:has-total-field="hasTotalField"
+			:name-order="nameOrder"
+			:is-processing="isProcessing"
+			@confirm="confirmExtraction"
+			@cancel="showModal = false"
+		/>
 	</div>
 </template>
 
 <script setup lang="ts">
 definePageMeta({ layout: "app" });
 
+import { formatSize } from "~/utils/format";
 import type { ExtractionResult } from "~/types";
 
 const files = ref<File[]>([]);
@@ -795,19 +662,20 @@ function clearFiles() {
 	files.value = [];
 }
 
-function formatSize(b: number) {
-	if (b < 1024) return `${b} B`;
-	if (b < 1024 * 1024) return `${(b / 1024).toFixed(0)} KB`;
-	return `${(b / 1024 / 1024).toFixed(1)} MB`;
-}
-
 const router = useRouter();
+const { trackExtractionStarted, trackExtractionCompleted } = useTracking();
+const { setResult } = useExtractionStore();
 
 async function confirmExtraction() {
 	isProcessing.value = true;
 	errors.value = [];
 	statusType.value = "processing";
 	statusMessage.value = `Invio di ${files.value.length} PDF a Claude…`;
+
+	const documentId = files.value.map(f => f.name).sort().join('|');
+	const documentName = files.value.length === 1 ? files.value[0].name : `${files.value.length} files`;
+	const extractionStart = Date.now();
+	trackExtractionStarted(documentId, documentName);
 
 	try {
 		const formData = new FormData();
@@ -839,7 +707,8 @@ async function confirmExtraction() {
 		statusType.value = "success";
 		statusMessage.value = `${result.rows.length} righe estratte · ${result.totalEmployees} dipendenti · ${result.totalMonths} mesi`;
 
-		sessionStorage.setItem("lul_result", JSON.stringify(result));
+		trackExtractionCompleted(documentId, documentName, Date.now() - extractionStart);
+		setResult(result);
 		router.push("/app/results");
 	} catch (err: unknown) {
 		statusType.value = "error";

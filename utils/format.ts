@@ -21,6 +21,12 @@ export function toHHMM(decimal: number): string {
   return `${h}:${String(m).padStart(2, "0")}`;
 }
 
+export function formatSize(b: number) {
+  if (b < 1024) return `${b} B`;
+  if (b < 1024 * 1024) return `${(b / 1024).toFixed(0)} KB`;
+  return `${(b / 1024 / 1024).toFixed(1)} MB`;
+}
+
 /**
  * Converts decimal hours to an Excel serial duration value.
  * Excel stores time as a fraction of 24h, so 1.5h = 1.5/24.
