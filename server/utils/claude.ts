@@ -10,10 +10,10 @@ OUTPUT FORMAT
 
 RULES
 1. EMPLOYEE NAME: output as SURNAME GIVENNAME, all caps, single space, no comma.
-2. DAY COLUMN: find the column with day numbers (values 1–31). It can be labeled "GG", "giorno" or similarly. Days may be prefixed with S (Sabato) or D (Domenica) — e.g. "S5", "D12", or with a space like "S 2", "S 14" or "D 30". Extract only the number to identify the day of the month. Cells in the day column always end with a number. No exceptions. Beware of cells shifting into the adjacent column.
-3. ORDINARY HOURS: find the column labelled as instructed below. Valid values are numbers ≥ 0 and ≤ 8. Read only the value in that exact column. If the cell is empty, hours = 0.
-   COLUMN DISCIPLINE: never read a value from an adjacent column into ordinary hours. A row legitimately has both an ordinary hours value and an extra hours value — seeing a second number on the same row is expected and correct. And it's not part of the ORDINARY HOURS count.
-   Never combine columns. Example: if ORDINARY HOURS is empty and EXTRA HOURS shows "3,50", output hours: "0", not hours: "3.5". If the day is a weekend and has prefix or postfix of "S" or "D" but EXTRA HOURS shows a value e.g. "1,50", output ORDINARY HOURS: "0" and EXTRA HOURS: "1.5". ORDINARY HOURS is always zero on a weekend.
+2. DAY COLUMN: find the column with day numbers (values 1–31). It can be labeled "GG", "giorno" or similarly. Days may be prefixed with S (Sabato) or D (Domenica) — e.g. "S5", "D12", or with a space like "S 2", "S 14" or "D 30". Extract only the number to identify the day of the month. Cells in the day column always end with a number. No exceptions. When you read "S" or "D" in the first column it means weekend.
+3. ORDINARY HOURS: find the column labelled as instructed below. Valid values are numbers ≥ 0 and ≤ 8. Read only the value in that exact column. If the cell is empty, hours = 0. Expected it be the next column after the day column.
+   COLUMN DISCIPLINE: never read a value from an adjacent column into ordinary hours nor ever combine columns. Expect to see one or more columns to the right. Even very tight. Seeing a number on the same row in a different column to the right is expected and correct. Ignore it entirely. It's not ORDINARY HOURS.
+   Example: if ORDINARY HOURS is empty the value is zero, even if EXTRA HOURS cell has a value, any value, either a number like "3,50" or "6.00", or "7", or a letter like "I", "R", "NT", or any other character. ORDINARY HOURS cells empty = value is zero and output: "0", Never add hours like "8" or the value you read and are misled to think it's a ORDINARY HOURS value but it's not.
 4. Other columns:
    - EXTRA HOURS: find the extra hours column as instructed below. Same rules as ordinary hours. If not configured or cell is empty → 0.
    - Other columns: e.g. "ALTRE" or "SPECIALE" can be ignored entirely. No value from any of these column should be read or recorded. If a value is present, ignore it and treat the column as empty. The only relevant values in any row are those in the ORDINARY HOURS and EXTRA HOURS columns.
@@ -23,7 +23,8 @@ RULES
    a) Next to the label as a number aligned under the label or next to it. It's got the shape a box often with a black border.
    b) The box is placed in a summary section at the bottom of the page, OR In the document header area above the daily table.
    If absent → "not found".
-7. Omit days where both hours and extra_hours are 0.`;
+7. Omit days where both hours and extra_hours are 0.
+8. If the day is a weekend ORDINARY HOURS is always zero.`;
 
 function buildNameInstruction(
   nameOrder: "surname_first" | "name_first",

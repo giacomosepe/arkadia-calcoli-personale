@@ -106,27 +106,24 @@
 				<table>
 					<thead>
 					<tr>
-					<th style="width: 120px">Data</th>
-					<th>Dipendente</th>
-					<th style="width: 100px; text-align: right">Totale</th>
-					<th style="width: 100px; text-align: right">Ore ord.</th>
-					<th style="width: 100px; text-align: right">Ore str.</th>
-					<th style="width: 64px"></th>
+					 <th style="width: 120px">Data</th>
+					 <th>Dipendente</th>
+					 <th style="width: 100px; text-align: right">Ore ord.</th>
+					 <th style="width: 100px; text-align: right">Ore str.</th>
+					 <th style="width: 64px"></th>
 					 <th style="width: 160px">File sorgente</th>
-					 </tr>
-						</thead>
+					</tr>
+					</thead>
 					<tbody>
 						<template v-for="group in groupedRows" :key="group.employee">
 							<!-- Employee group header — read-only computed sum -->
 							<tr class="group-header-row">
 								<td class="group-employee-cell">
 									<span class="group-employee-name">{{ group.employee }}</span>
-									<span class="group-badge">{{ group.rows.length }} giorni</span>
 								</td>
-								<td></td>
-								<td class="group-total-cell">{{ group.totalCombinedHours }}</td>
-								<td class="group-total-cell">{{ group.totalHours }}</td>
-								<td class="group-total-cell" style="color: var(--c-text-secondary)">{{ group.totalExtraHours }}</td>
+								<td class="group-total-cell">{{ formatHours(group.totalCombinedHours) }}</td>
+								<td class="group-total-cell">{{ formatHours(group.totalHours) }}</td>
+								<td class="group-total-cell">{{ formatHours(group.totalExtraHours) }}</td>
 								<td colspan="2"></td>
 							</tr>
 
@@ -152,7 +149,6 @@
 									/>
 								</td>
 								<td class="text-secondary text-sm">{{ row.employee }}</td>
-								<td></td>
 								<!-- Ordinary hours -->
 								<td style="text-align: right; padding: 6px 8px">
 									<div class="hours-cell">
@@ -211,7 +207,7 @@
 							</tr>
 						</template>
 						<tr v-if="filteredRows.length === 0">
-							<td colspan="7" style="text-align:center; padding: 32px; color: var(--c-text-tertiary)">
+							<td colspan="6" style="text-align:center; padding: 32px; color: var(--c-text-tertiary)">
 								Nessuna riga trovata con i filtri selezionati.
 							</td>
 						</tr>
@@ -407,6 +403,13 @@ const groupedRows = computed(() => {
 
 // Returns true when a decimal hour value has a non-zero minute component
 // e.g. 8.5 → true (8:30), 8.0 → false, 1.75 → true (1:45)
+function formatHours(val: number): string {
+	const rounded = Math.round(val * 100) / 100
+	const [intPart, decPart] = rounded.toString().split('.')
+	const withSep = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+	return decPart ? `${withSep},${decPart}` : withSep
+}
+
 function hasMinutes(val: number | undefined): boolean {
 	if (!val) return false
 	return Math.round(val * 60) % 60 !== 0
@@ -474,8 +477,8 @@ function hasMinutes(val: number | undefined): boolean {
 	font-family: var(--font-mono);
 	font-size: 0.8rem;
 	font-weight: 600;
-	color: var(--c-accent);
-	text-align: right;
+	color: var(--c-text-primary);
+	text-align: center;
 	padding: 8px 16px;
 }
 
