@@ -585,45 +585,29 @@ import { formatSize } from "~/utils/format";
 import type { ExtractionResult } from "~/types";
 
 const files = ref<File[]>([]);
-const isDragging = ref(false);
-const dailyColumn = ref("");
-const extraColumn = ref("");
-const summaryLabel = ref("");
-const hasTotalField = ref(true);
+const dailyColumn = ref(""), extraColumn = ref(""), summaryLabel = ref("");
+const isDragging = ref(false), hasTotalField = ref(true), isProcessing = ref(false);
 const nameOrder = ref<'surname_first' | 'name_first'>('surname_first');
-const isProcessing = ref(false);
 const statusMessage = ref("");
-const statusType = ref<"processing" | "success" | "error" | "warning">(
-	"processing",
-);
+const statusType = ref<"processing" | "success" | "error" | "warning">("processing");
 const errors = ref<string[]>([]);
 const fileInput = ref<HTMLInputElement | null>(null);
-const showModal = ref(false);
-const showValidation = ref(false);
-const apiKey = ref("");
-const showApiKeyText = ref(false);
+const showModal = ref(false), showValidation = ref(false), apiKey = ref(""), showApiKeyText = ref(false);
+const router = useRouter();
+const { data: apiConfig } = await useFetch("/api/check-config");
+const { trackExtractionStarted, trackExtractionCompleted } = useTracking();
+const { setResult } = useExtractionStore();
 
-onMounted(() => {
-	const saved = localStorage.getItem("anthropic_api_key");
-	if (saved) apiKey.value = saved;
-});
+onMounted(() => { apiKey.value = localStorage.getItem("anthropic_api_key") ?? ""; });
 
 watch(apiKey, (val) => {
-	if (val.trim()) {
-		localStorage.setItem("anthropic_api_key", val.trim());
-	} else {
-		localStorage.removeItem("anthropic_api_key");
-	}
+	if (val.trim()) localStorage.setItem("anthropic_api_key", val.trim());
+	else localStorage.removeItem("anthropic_api_key");
 });
 
-const { data: apiConfig } = await useFetch("/api/check-config");
-
-const canRun = computed(
-	() =>
-		files.value.length > 0 &&
-		dailyColumn.value.trim() !== "" &&
-		nameOrder.value !== "" &&
-		(!hasTotalField.value || summaryLabel.value.trim() !== ""),
+const canRun = computed(() =>
+	files.value.length > 0 && dailyColumn.value.trim() !== "" && nameOrder.value !== "" &&
+	(!hasTotalField.value || summaryLabel.value.trim() !== "")
 );
 
 function handleRunClick() {
@@ -634,11 +618,7 @@ function handleRunClick() {
 
 function handleDrop(e: DragEvent) {
 	isDragging.value = false;
-	addFiles(
-		Array.from(e.dataTransfer?.files ?? []).filter((f) =>
-			f.name.toLowerCase().endsWith(".pdf"),
-		),
-	);
+	addFiles(Array.from(e.dataTransfer?.files ?? []).filter((f) => f.name.toLowerCase().endsWith(".pdf")));
 }
 
 function handleFileChange(e: Event) {
@@ -648,72 +628,38 @@ function handleFileChange(e: Event) {
 
 function addFiles(newFiles: File[]) {
 	const existing = new Set(files.value.map((f) => f.name));
-	files.value = [
-		...files.value,
-		...newFiles.filter((f) => !existing.has(f.name)),
-	];
+	files.value = [...files.value, ...newFiles.filter((f) => !existing.has(f.name))];
 }
 
-function removeFile(i: number) {
-	files.value = files.value.filter((_, idx) => idx !== i);
-}
-
-function clearFiles() {
-	files.value = [];
-}
-
-const router = useRouter();
-const { trackExtractionStarted, trackExtractionCompleted } = useTracking();
-const { setResult } = useExtractionStore();
+function removeFile(i: number) { files.value = files.value.filter((_, idx) => idx !== i); }
+function clearFiles() { files.value = []; }
 
 async function confirmExtraction() {
-	isProcessing.value = true;
-	errors.value = [];
-	statusType.value = "processing";
+	isProcessing.value = true; errors.value = []; statusType.value = "processing";
 	statusMessage.value = `Invio di ${files.value.length} PDF a Claude…`;
-
 	const documentId = files.value.map(f => f.name).sort().join('|');
 	const documentName = files.value.length === 1 ? files.value[0].name : `${files.value.length} files`;
-	const extractionStart = Date.now();
-	trackExtractionStarted(documentId, documentName);
+	const extractionStart = Date.now(); trackExtractionStarted(documentId, documentName);
 
 	try {
 		const formData = new FormData();
-		formData.append("vendorName", "Italian LUL payroll document");
-		formData.append("nameOrder", nameOrder.value);
-		formData.append("dailyColumn", dailyColumn.value);
-		formData.append("extraColumn", extraColumn.value.trim());
+		formData.append("vendorName", "Italian LUL payroll document"); formData.append("nameOrder", nameOrder.value);
+		formData.append("dailyColumn", dailyColumn.value); formData.append("extraColumn", extraColumn.value.trim());
 		formData.append("summaryLabel", hasTotalField.value ? summaryLabel.value : "");
 		if (apiKey.value.trim()) formData.append("apiKey", apiKey.value.trim());
 		files.value.forEach((f) => formData.append("files", f));
-
 		statusMessage.value = "Claude sta analizzando i documenti…";
 
-		const result = await $fetch<ExtractionResult>("/api/extract", {
-			method: "POST",
-			body: formData,
-		});
-
+		const result = await $fetch<ExtractionResult>("/api/extract", { method: "POST", body: formData });
 		if (result.errors?.length) errors.value = result.errors;
-
 		if (result.rows.length === 0) {
-			statusType.value = "warning";
-			statusMessage.value =
-				"Nessuna riga estratta. Controlla i file e riprova.";
-			showModal.value = false;
+			statusType.value = "warning"; statusMessage.value = "Nessuna riga estratta. Controlla i file e riprova."; showModal.value = false;
 			return;
 		}
-
-		statusType.value = "success";
-		statusMessage.value = `${result.rows.length} righe estratte · ${result.totalEmployees} dipendenti · ${result.totalMonths} mesi`;
-
-		trackExtractionCompleted(documentId, documentName, Date.now() - extractionStart);
-		setResult(result);
-		router.push("/app/results");
+		statusType.value = "success"; statusMessage.value = `${result.rows.length} righe estratte · ${result.totalEmployees} dipendenti · ${result.totalMonths} mesi`;
+		trackExtractionCompleted(documentId, documentName, Date.now() - extractionStart); setResult(result); router.push("/app/results");
 	} catch (err: unknown) {
-		statusType.value = "error";
-		statusMessage.value = `Errore: ${err instanceof Error ? err.message : "Errore sconosciuto"}`;
-		showModal.value = false;
+		statusType.value = "error"; statusMessage.value = `Errore: ${err instanceof Error ? err.message : "Errore sconosciuto"}`; showModal.value = false;
 	} finally {
 		isProcessing.value = false;
 	}
