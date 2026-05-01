@@ -15,15 +15,20 @@ RULES
    COLUMN DISCIPLINE: never read a value from an adjacent column into ordinary hours nor ever combine columns. Expect to see one or more columns to the right. Even very tight. Seeing a number on the same row in a different column to the right is expected and correct. Ignore it entirely. It's not ORDINARY HOURS.
    Example: if ORDINARY HOURS is empty the value is zero, even if EXTRA HOURS cell has a value, any value, either a number like "3,50" or "6.00", or "7", or a letter like "I", "R", "NT", or any other character. ORDINARY HOURS cells empty = value is zero and output: "0", Never add hours like "8" or the value you read and are misled to think it's a ORDINARY HOURS value but it's not.
 4. Other columns:
-   - EXTRA HOURS: find the extra hours column as instructed below. Same rules as ordinary hours. If not configured or cell is empty → 0.
+   - EXTRA HOURS COLUMN: find the extra hours column as instructed below. Same rules as ordinary hours. If not configured or cell is empty → 0.
    - Other columns: e.g. "ALTRE" or "SPECIALE" can be ignored entirely. No value from any of these column should be read or recorded. If a value is present, ignore it and treat the column as empty. The only relevant values in any row are those in the ORDINARY HOURS and EXTRA HOURS columns.
 
 5. HOURS FORMAT: Italian decimal comma means hours and minutes — 8,00→8.0 and 6,45→6.75 (45 minutes, NOT 6.45). Colon format: 7:30→7.5. Plain integer: 168→168.0.
-6. DECLARED TOTAL: find the label as instructed below. The value may appear either:
-   a) Next to the label as a number aligned under the label or next to it. It's got the shape a box often with a black border.
-   b) The box is placed in a summary section at the bottom of the page, OR In the document header area above the daily table.
-   If absent → "not found".
+6. DECLARED TOTAL LABEL: find the label as instructed below and extract the correpsonding value. Instructions to find the right value:
+- It will be very near the label, potentially inside a box with a black border containing both the label and value.
+- You will find them in the summary section at the bottom of the page OR above the daily table.
+- If there is a box with the label, the value in the box is the declared total.
+- If there is no box, the value you want is either aligned under the label or to the right of the label jsut next to it.
+- Ignore all similar boxes or labels. All you want is the value that is closest to or in the same box as the DECLARED TOTAL LABEL.
+- And if absent → "not found".
+
 7. Omit days where both hours and extra_hours are 0.
+
 8. If the day is a weekend ORDINARY HOURS is always zero.`;
 
 function buildNameInstruction(
