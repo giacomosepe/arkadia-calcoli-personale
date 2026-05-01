@@ -105,15 +105,16 @@
 			<div class="table-wrap">
 				<table>
 					<thead>
-						<tr>
-							<th style="width: 120px">Data</th>
-							<th>Dipendente</th>
-							<th style="width: 100px; text-align: right">Ore ord.</th>
-							<th style="width: 100px; text-align: right">Ore str.</th>
-							<th style="width: 64px"></th>
-							<th style="width: 160px">File sorgente</th>
-						</tr>
-					</thead>
+					<tr>
+					<th style="width: 120px">Data</th>
+					<th>Dipendente</th>
+					<th style="width: 100px; text-align: right">Totale</th>
+					<th style="width: 100px; text-align: right">Ore ord.</th>
+					<th style="width: 100px; text-align: right">Ore str.</th>
+					<th style="width: 64px"></th>
+					 <th style="width: 160px">File sorgente</th>
+					 </tr>
+						</thead>
 					<tbody>
 						<template v-for="group in groupedRows" :key="group.employee">
 							<!-- Employee group header — read-only computed sum -->
@@ -123,8 +124,9 @@
 									<span class="group-badge">{{ group.rows.length }} giorni</span>
 								</td>
 								<td></td>
-								<td class="group-total-cell">{{ toHHMM(group.totalHours) }}</td>
-								<td class="group-total-cell" style="color: var(--c-text-secondary)">{{ toHHMM(group.totalExtraHours) }}</td>
+								<td class="group-total-cell">{{ group.totalCombinedHours }}</td>
+								<td class="group-total-cell">{{ group.totalHours }}</td>
+								<td class="group-total-cell" style="color: var(--c-text-secondary)">{{ group.totalExtraHours }}</td>
 								<td colspan="2"></td>
 							</tr>
 
@@ -150,6 +152,7 @@
 									/>
 								</td>
 								<td class="text-secondary text-sm">{{ row.employee }}</td>
+								<td></td>
 								<!-- Ordinary hours -->
 								<td style="text-align: right; padding: 6px 8px">
 									<div class="hours-cell">
@@ -208,7 +211,7 @@
 							</tr>
 						</template>
 						<tr v-if="filteredRows.length === 0">
-							<td colspan="6" style="text-align:center; padding: 32px; color: var(--c-text-tertiary)">
+							<td colspan="7" style="text-align:center; padding: 32px; color: var(--c-text-tertiary)">
 								Nessuna riga trovata con i filtri selezionati.
 							</td>
 						</tr>
@@ -390,13 +393,14 @@ const filteredRows = computed(() => {
 })
 
 const groupedRows = computed(() => {
-	const map = new Map<string, { employee: string; rows: ExtractedRow[]; totalHours: number; totalExtraHours: number }>()
+	const map = new Map<string, { employee: string; rows: ExtractedRow[]; totalHours: number; totalExtraHours: number; totalCombinedHours: number }>()
 	for (const row of filteredRows.value) {
-		if (!map.has(row.employee)) map.set(row.employee, { employee: row.employee, rows: [], totalHours: 0, totalExtraHours: 0 })
+		if (!map.has(row.employee)) map.set(row.employee, { employee: row.employee, rows: [], totalHours: 0, totalExtraHours: 0, totalCombinedHours: 0 })
 		const g = map.get(row.employee)!
 		g.rows.push(row)
 		g.totalHours += row.hours
 		g.totalExtraHours += (row.extraHours ?? 0)
+		g.totalCombinedHours = Math.round((g.totalHours + g.totalExtraHours) * 10000) / 10000
 	}
 	return [...map.values()].sort((a, b) => a.employee.localeCompare(b.employee))
 })
