@@ -35,10 +35,12 @@ export interface CompanyConfig {
   id: string;
   name: string;
   vendorName: string;
+  nameOrder: "surname_first" | "name_first";
   nameLocation: string;
   hoursFieldLabel: string;
   hoursFieldCode: string;
   dailyColumn: string;
+  extraColumn: string;
   summaryLabel: string;
   outputTemplatePath: string;
 }

@@ -231,6 +231,7 @@ const emit = defineEmits<{
 }>()
 
 const {
+	result,
 	editedRows,
 	declaredOverrides,
 	editedCount,
@@ -262,21 +263,22 @@ function onDateChange(row: ExtractedRow, value: string) {
 	if (!value) return
 	const [y, m, d] = value.split('-').map(Number)
 	if (!y || !m || !d) return
-	const idx = props.result.rows.findIndex(
+	const rows = result.value!.rows
+	const idx = rows.findIndex(
 		r => r.employee === row.employee && r.year === row.year && r.month === row.month && r.day === row.day
 	)
 	if (idx === -1) return
 	const dd = String(d).padStart(2, '0')
 	const mm = String(m).padStart(2, '0')
-	props.result.rows[idx] = { ...props.result.rows[idx], date: `${dd}/${mm}/${y}`, day: d, month: m, year: y }
-	props.result.rows.sort((a, b) => {
+	rows[idx] = { ...rows[idx], date: `${dd}/${mm}/${y}`, day: d, month: m, year: y }
+	rows.sort((a, b) => {
 		const n = a.employee.localeCompare(b.employee)
 		if (n !== 0) return n
 		if (a.year !== b.year) return a.year - b.year
 		if (a.month !== b.month) return a.month - b.month
 		return a.day - b.day
 	})
-	markEdited(props.result.rows[idx] ?? row)
+	markEdited(rows[idx] ?? row)
 	emit('change')
 }
 
@@ -284,18 +286,19 @@ function onDateChange(row: ExtractedRow, value: string) {
 function onHoursChange(row: ExtractedRow, field: 'hours' | 'extraHours', rawValue: string) {
 	const val = parseFloat(rawValue)
 	if (isNaN(val) || val < 0) return
-	const idx = props.result.rows.findIndex(
+	const rows = result.value!.rows
+	const idx = rows.findIndex(
 		r => r.employee === row.employee && r.year === row.year && r.month === row.month && r.day === row.day
 	)
 	if (idx === -1) return
-	props.result.rows[idx][field] = Math.round(val * 10000) / 10000
-	markEdited(props.result.rows[idx])
+	rows[idx][field] = Math.round(val * 10000) / 10000
+	markEdited(rows[idx])
 	emit('change')
 }
 
 // ── Delete row ───────────────────────────────────────────────────────
 function deleteRow(row: ExtractedRow) {
-	props.result.rows = props.result.rows.filter(
+	result.value!.rows = result.value!.rows.filter(
 		r => !(r.employee === row.employee && r.year === row.year && r.month === row.month && r.day === row.day)
 	)
 	pendingDelete.value = null

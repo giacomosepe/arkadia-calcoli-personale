@@ -3,10 +3,12 @@
     "id": "adenes",
     "name": "Adenes Italia SRL",
     "vendorName": "Zucchetti",
+    "nameOrder": "surname_first",
     "nameLocation": "Find the employee name in the header section of the page, under the label 'COGNOME NOME e INDIRIZZO' or similar. The name appears as Firstname Lastname (e.g. 'ALBANESE ANDREA') — apply surname-first rule from system prompt.",
     "hoursFieldLabel": "ORE ORDINARIE",
     "hoursFieldCode": "ORD",
     "dailyColumn": "ORDINARIE",
+    "extraColumn": "",
     "summaryLabel": "ORE ORDINARIE",
     "outputTemplatePath": "/template.xlsx"
   },
@@ -15,8 +17,11 @@
     "name": "Minigrip Grip-Pak SRL",
     "vendorName": "Data Services S.R.L.",
     "nameOrder": "surname_first",
+    "nameLocation": "Find the employee name in the header section of the page. The name appears as surname first.",
+    "hoursFieldLabel": "ORE LAVORATE",
+    "hoursFieldCode": "ORD.",
     "dailyColumn": "ORD.",
-    "straorColumn": "STRAOR.",
+    "extraColumn": "STRAOR.",
     "summaryLabel": "ORE LAVORATE",
     "outputTemplatePath": "/template.xlsx"
   }
