@@ -5,6 +5,12 @@ type UseTracking = {
 		documentName: string,
 		durationMs: number,
 	) => void;
+	trackExtractionFailed: (
+		documentId: string,
+		documentName: string,
+		reason: "zero_rows" | "api_error",
+		errorMessage?: string,
+	) => void;
 	trackResultExported: (documentId: string) => void;
 };
 
@@ -35,6 +41,22 @@ export const useTracking = (): UseTracking => {
 		});
 	};
 
+	const trackExtractionFailed = (
+		documentId: string,
+		documentName: string,
+		reason: "zero_rows" | "api_error",
+		errorMessage?: string,
+	): void => {
+		const { $posthog } = useNuxtApp();
+		$posthog().capture("extraction_failed", {
+			document_id: documentId,
+			document_name: documentName,
+			reason,
+			error_message: errorMessage,
+			timestamp: new Date().toISOString(),
+		});
+	};
+
 	const trackResultExported = (documentId: string): void => {
 		const { $posthog } = useNuxtApp();
 		$posthog().capture("result_exported", {
@@ -47,6 +69,7 @@ export const useTracking = (): UseTracking => {
 	return {
 		trackExtractionStarted,
 		trackExtractionCompleted,
+		trackExtractionFailed,
 		trackResultExported,
 	};
 };

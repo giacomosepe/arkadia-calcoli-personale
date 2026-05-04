@@ -595,7 +595,11 @@ const fileInput = ref<HTMLInputElement | null>(null);
 const showModal = ref(false), showValidation = ref(false), apiKey = ref(""), showApiKeyText = ref(false);
 const router = useRouter();
 const { data: apiConfig } = await useFetch("/api/check-config");
-const { trackExtractionStarted, trackExtractionCompleted } = useTracking();
+const {
+	trackExtractionStarted,
+	trackExtractionCompleted,
+	trackExtractionFailed,
+} = useTracking();
 const { setResult } = useExtractionStore();
 
 onMounted(() => { apiKey.value = localStorage.getItem("anthropic_api_key") ?? ""; });
@@ -651,15 +655,28 @@ async function confirmExtraction() {
 		statusMessage.value = "Claude sta analizzando i documenti…";
 
 		const result = await $fetch<ExtractionResult>("/api/extract", { method: "POST", body: formData });
-		if (result.errors?.length) errors.value = result.errors;
+		if (result.errors?.length) {
+			errors.value = result.errors;
+			if (result.rows.length > 0) {
+				trackExtractionFailed(
+					documentId,
+					documentName,
+					"api_error",
+					result.errors.join(" | "),
+				);
+			}
+		}
 		if (result.rows.length === 0) {
+			trackExtractionFailed(documentId, documentName, "zero_rows", result.errors?.join(" | "));
 			statusType.value = "warning"; statusMessage.value = "Nessuna riga estratta. Controlla i file e riprova."; showModal.value = false;
 			return;
 		}
 		statusType.value = "success"; statusMessage.value = `${result.rows.length} righe estratte · ${result.totalEmployees} dipendenti · ${result.totalMonths} mesi`;
 		trackExtractionCompleted(documentId, documentName, Date.now() - extractionStart); setResult(result); router.push("/app/results");
 	} catch (err: unknown) {
-		statusType.value = "error"; statusMessage.value = `Errore: ${err instanceof Error ? err.message : "Errore sconosciuto"}`; showModal.value = false;
+		const errorMessage = err instanceof Error ? err.message : "Errore sconosciuto";
+		trackExtractionFailed(documentId, documentName, "api_error", errorMessage);
+		statusType.value = "error"; statusMessage.value = `Errore: ${errorMessage}`; showModal.value = false;
 	} finally {
 		isProcessing.value = false;
 	}
